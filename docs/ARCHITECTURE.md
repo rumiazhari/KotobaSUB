@@ -1,0 +1,18 @@
+# Architecture
+
+## Implemented foundation
+`KotobaSUB.Core` owns immutable subtitle/token records, overlay preferences, validated local settings and rotating logs. `KotobaSUB.Windows` owns WPF layout, HWND styles, global hotkeys, tray lifetime and the small native settings window. `KotobaSUB.Tests` is a dependency-free executable regression suite. UI-only rendering is behind `ISubtitleRenderer`; sample data is explicit developer/tray preview data, not an input provider.
+
+Glyphs are drawn with a black outline beneath white fill so text remains legible over light and dark content. A down-only Viewbox prevents clipping in constrained geometry; wrapping is recalculated on resize. The WPF window has `AllowsTransparency`, a transparent background, no chrome, no taskbar item and `ShowActivated=false`. The native layer applies TOOLWINDOW, NOACTIVATE and TRANSPARENT while locked. WPF owns LAYERED. SetWindowPos uses HWND_TOPMOST and SWP_NOACTIVATE. Edit mode clears TRANSPARENT, supplies a temporary position-edit surface and allows drag/resize, then removes it on lock. It never adds decoration to normal subtitles. Hotkeys are registered against the overlay HWND and released on shutdown. Registration failure is visible in logs/tray; no keyboard hook is required.
+
+Settings and logs live under `%LOCALAPPDATA%/KotobaSUB`. Tests use isolated paths. Settings writes use a temporary file plus atomic replacement. Invalid/out-of-range geometry is clamped before use, and a missing monitor cannot strand the overlay offscreen. Current milestone uses virtual desktop bounds; exact per-monitor layout profiles remain Milestone 6 work.
+
+## Planned provider pipeline (not implemented yet)
+Media metadata events produce track identity plus position, duration, playback rate/state and an observation timestamp. A controller cancels the prior generation on changes. Providers output normalized segments with source identity, start/end time, timing granularity and optional supplied translation. Japanese analysis enriches segments off the dispatcher. Rendering only receives finished immutable models, and redraws on a new line or settings change.
+
+Introduce `IMediaMetadataProvider`, `ISubtitleProvider`, `IAudioSource`, `ITranscriptionProvider`, `IJapaneseTokenizer`, `IDictionaryProvider` and `ITranslationProvider` as their concrete integrations are built. Avoid empty implementations or adding speculative interfaces with no consumer. Audio source selection remains abstract enough for process loopback/microphone later. Network calls receive cancellation tokens, timeouts and track generation checks. Audio buffers are bounded, disposed on pause and never uploaded. Cache keys include data format and analyzer versions.
+
+Source eligibility requires reliable timing and match confidence. Caption priority does not imply a caption source exists. Line timing must never be turned into word timing. Provider errors clear stale data and route to the next eligible source. Annotation errors keep original Japanese. Optional translation cannot block rendering. Diagnostic text belongs in tray/logs, not the overlay.
+
+## Privacy and resource boundaries
+Milestone 1 makes no application network requests and captures no audio. Future lyrics requests disclose song title/artist/duration to LRCLIB/NetEase; model/dictionary updates disclose ordinary download request metadata. Local speech audio, dictionary queries and logs remain local. Cloud translation is disabled unless explicitly configured. No telemetry or automatic online romanization. Normal idle rendering has no polling timer; future timed playback schedules only needed transitions.

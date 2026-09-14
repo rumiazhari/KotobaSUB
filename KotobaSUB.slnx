@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/KotobaSUB.Core/KotobaSUB.Core.csproj" />
+    <Project Path="src/KotobaSUB.Windows/KotobaSUB.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/KotobaSUB.Tests/KotobaSUB.Tests.csproj" />
+  </Folder>
+</Solution>
