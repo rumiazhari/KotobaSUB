@@ -101,7 +101,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         : token.Reading is { } reading ? KanaRomanizer.Convert(reading) : "";
     private static HorizontalAlignment Alignment(string mode) => mode switch { "Left" => HorizontalAlignment.Left, "Right" => HorizontalAlignment.Right, _ => HorizontalAlignment.Center };
     private FrameworkElement Line(FrameworkElement element) { element.Margin = new Thickness(0, Preferences.LineSpacing / 2, 0, Preferences.LineSpacing / 2); return element; }
-    private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily, Preferences.JapaneseWeight)
+    private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily, Preferences.JapaneseWeight, Preferences.OutlineWidth)
     {
         Opacity = opacity, MinHeight = minHeight
     };

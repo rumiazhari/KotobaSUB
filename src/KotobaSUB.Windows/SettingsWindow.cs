@@ -51,6 +51,11 @@ internal sealed class SettingsWindow : Window
         var lineSpacing = new Slider { Minimum = 0, Maximum = 32, Value = current.LineSpacing, TickFrequency = 2, IsSnapToTickEnabled = true };
         lineSpacing.ValueChanged += (_, _) => { current = current with { LineSpacing = lineSpacing.Value }; lineSpacingText.Text = $"Line spacing: {lineSpacing.Value:0}"; changed(current); };
         panel.Children.Add(lineSpacing);
+        var outlineText = new TextBlock { Text = $"Text outline: {current.OutlineWidth:0.0} px", Margin = new Thickness(0, 12, 0, 4) };
+        panel.Children.Add(outlineText);
+        var outline = new Slider { Minimum = 0, Maximum = 8, Value = current.OutlineWidth, TickFrequency = .5, IsSnapToTickEnabled = true };
+        outline.ValueChanged += (_, _) => { current = current with { OutlineWidth = outline.Value }; outlineText.Text = $"Text outline: {outline.Value:0.0} px"; changed(current); };
+        panel.Children.Add(outline);
         var opacityText = new TextBlock { Text = $"Japanese opacity: {current.JapaneseOpacity:P0}", Margin = new Thickness(0, 12, 0, 4) };
         panel.Children.Add(opacityText);
         var opacity = new Slider { Minimum = .1, Maximum = 1, Value = current.JapaneseOpacity, TickFrequency = .1, IsSnapToTickEnabled = true };
