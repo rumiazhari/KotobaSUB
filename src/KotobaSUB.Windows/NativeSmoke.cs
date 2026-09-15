@@ -70,6 +70,9 @@ internal static class NativeSmoke
                 Check(edited?.NextLine == false, "settings context toggle applies live");
                 panel.Children.OfType<Slider>().First().Value = 42;
                 Check(edited?.FontSize == 42, "settings font slider applies live");
+                Check(panel.Children.OfType<Slider>().Count() == 3, "settings exposes token spacing slider");
+                panel.Children.OfType<Slider>().Skip(1).First().Value = 16;
+                Check(edited?.TokenSpacing == 16, "settings token spacing applies live");
                 panel.Children.OfType<Slider>().Last().Value = 1.5;
                 Check(edited?.GlobalOffsetSeconds == 1.5, "settings sync slider applies live");
                 settings.UpdateLayout(); Capture(settings, Path.Combine(directory, "settings.png")); settings.Close();
