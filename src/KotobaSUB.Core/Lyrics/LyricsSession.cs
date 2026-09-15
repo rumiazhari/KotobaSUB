@@ -89,7 +89,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
                     Status = $"{cached.Source} cached lyrics"; Changed?.Invoke();
                     if (cachedProfile?.State == LyricConfidenceState.Verified) return;
                 }
-                var shortlist = await multi.ResolveCandidatesAsync(track, new HashSet<string>(rejected), bypassCache, cancellation.Token).ConfigureAwait(false);
+                var shortlist = await multi.ResolveCandidatesAsync(track, new HashSet<string>(rejected), bypassCache, cancellation.Token);
                 if (disposed || cancellation.IsCancellationRequested || expectedGeneration != generation) return;
                 Candidates = shortlist;
                 foreach (var item in shortlist)
@@ -104,7 +104,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
             }
             else
             {
-                var result = await provider.ResolveAsync(track, new HashSet<string>(rejected), bypassCache, cancellation.Token).ConfigureAwait(false);
+                var result = await provider.ResolveAsync(track, new HashSet<string>(rejected), bypassCache, cancellation.Token);
                 if (disposed || cancellation.IsCancellationRequested || expectedGeneration != generation) return;
                 SetSelected(result);
                 Status = result is null ? "No timed lyrics" : result.Source;

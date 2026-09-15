@@ -110,6 +110,34 @@ internal static class LyricsTests
             var offsets = new SongOffsets(Path.Combine(directory, "offsets.json"), _ => { }); offsets.Set("song", 1.5);
             Check(new SongOffsets(Path.Combine(directory, "offsets.json"), _ => { }).Get("song") == 1.5);
         });
+        test("provider completion stays on the session synchronization context", () =>
+        {
+            var previous = SynchronizationContext.Current;
+            var context = new PumpContext();
+            SynchronizationContext.SetSynchronizationContext(context);
+            try
+            {
+                var provider = new DeferredProvider();
+                using var session = new LyricsSession(provider, _ => { });
+                int owner = Environment.CurrentManagedThreadId;
+                bool wrongThread = false;
+                session.Changed += () => wrongThread |= Environment.CurrentManagedThreadId != owner;
+                session.Update(new(Track(), TimeSpan.Zero, false, 1, Stopwatch.GetTimestamp()));
+                Task.Run(() => provider.Completions[0].SetResult(new("test", "ui", "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), "[00:00]私"))).GetAwaiter().GetResult();
+                var deadline = Stopwatch.StartNew();
+                while (!session.Pending.IsCompleted && deadline.Elapsed < TimeSpan.FromSeconds(3)) context.Pump();
+                Check(session.Pending.IsCompleted && session.Selected?.Id == "ui" && !wrongThread);
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        });
+        test("untimed top matches cannot hide a later synchronized candidate", () => RunAsync(async () =>
+        {
+            var candidates = Enumerable.Range(0, 7).Select(i => new LyricsCandidate("bounded", i.ToString(), "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), i == 6 ? "[00:01]私" : "untimed")).ToArray();
+            var source = new TestSource("bounded", candidates);
+            var resolver = new LyricsResolver([source], new LyricsCache(Path.Combine(directory, "untimed-leading"), _ => { }), _ => { });
+            var result = await resolver.ResolveCandidatesAsync(Track(), new HashSet<string>(), true, CancellationToken.None);
+            Check(result.Single().Candidate.Id == "6" && source.Fetched.Count <= 12);
+        }));
         test("source fallback skips wrong and untimed candidates", () => RunAsync(async () =>
         {
             var wrong = new LyricsCandidate("first", "1", "アイドル", "YOASOBI", TimeSpan.FromSeconds(90), "[00:01]wrong");
@@ -182,6 +210,12 @@ internal static class LyricsTests
         }));
     }
     private static void RunAsync(Func<Task> action) => action().GetAwaiter().GetResult();
+    private sealed class PumpContext : SynchronizationContext
+    {
+        private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> queue = new();
+        public override void Post(SendOrPostCallback callback, object? state) => queue.Add((callback, state));
+        public void Pump() { if (queue.TryTake(out var work, 20)) work.Callback(work.State); }
+    }
     private sealed class DeferredProvider : ILyricsProvider
     {
         public List<TaskCompletionSource<LyricsCandidate?>> Completions { get; } = new();

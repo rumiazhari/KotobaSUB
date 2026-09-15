@@ -89,7 +89,7 @@ public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsC
 
         var retained = new List<LyricsCandidateMatch>(MaximumRetainedCandidates);
         if (cached is not null) retained.Add(new(cached, MetadataMatching.Evaluate(track, cached.Title, cached.Artist, cached.Duration, readingAlias)));
-        foreach (var item in discovered.Values.Where(x => cached is null || x.Candidate.Key != cached.Key).OrderByDescending(x => x.Match.Score).Take(Math.Max(0, MaximumRetainedCandidates - retained.Count)))
+        foreach (var item in discovered.Values.Where(x => cached is null || x.Candidate.Key != cached.Key).OrderByDescending(x => x.Match.Score).Take(MaximumRetainedCandidates * 2))
         {
             token.ThrowIfCancellationRequested();
             try
@@ -98,6 +98,7 @@ public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsC
                 if (string.IsNullOrWhiteSpace(resolved.Original) || !new LyricTimeline(resolved.Original, resolved.Translation, track.Duration).HasText) continue;
                 retained.Add(new(resolved, item.Match));
                 log($"retained {resolved.Key}; metadata={item.Match.Score:F1}");
+                if (retained.Count == MaximumRetainedCandidates) break;
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException && !token.IsCancellationRequested)
             { log($"{item.Source.Name} lyrics failed: {ex.Message}"); }

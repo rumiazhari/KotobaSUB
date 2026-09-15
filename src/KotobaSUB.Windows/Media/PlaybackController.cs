@@ -137,7 +137,7 @@ internal sealed class PlaybackController : IDisposable
         SetAsrDesired(decision.ShouldRunAsr || probeActive, flushProbe);
         status(SourceStatus(decision, audioStatus));
         if (decision.Frame != rendered) { learning.RenderFrame(decision.Frame); rendered = decision.Frame; }
-        ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation, probeScheduler.NextDelay(now));
+        ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation, session.Timeline is not null ? probeScheduler.NextDelay(now) : null);
     }
 
     private void SuspendAsr()
@@ -171,13 +171,13 @@ internal sealed class PlaybackController : IDisposable
         _ = overlay.Dispatcher.BeginInvoke(new Action(() =>
         {
             lock (asrGate) { if (disposed || generation != asrGeneration) return; }
-            if (media != Volatile.Read(ref mediaGeneration) || session.Snapshot is null) return;
+            if (media != Volatile.Read(ref mediaGeneration)) return;
             var completedAt = Stopwatch.GetTimestamp();
             var observed = audioClock.MapCaptureTime(value.Start + (value.End - value.Start) / 2);
-            if (observed is null) return;
+
             var latency = audioClock.EstimateInferenceLatency(value.End, completedAt);
-            if (latency is not null) log($"ASR callback latency={latency.Value.TotalMilliseconds:F0}ms; capture center={observed.Value.TotalSeconds:F3}s");
-            if (session.Candidates.Count > 0)
+            if (latency is not null && observed is not null) log($"ASR callback latency={latency.Value.TotalMilliseconds:F0}ms; capture center={observed.Value.TotalSeconds:F3}s");
+            if (observed is not null && session.Snapshot is not null && session.Candidates.Count > 0)
             {
                 var snapshot = session.Snapshot;
                 double progress = snapshot.Track.Duration > TimeSpan.Zero ? observed.Value.TotalSeconds / snapshot.Track.Duration.TotalSeconds : 0;

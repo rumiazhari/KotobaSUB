@@ -29,7 +29,12 @@ internal static class RoutingSmoke
         var elapsed = Stopwatch.StartNew();
         int cycle = 0; bool clearedAfterSuspend = false; string? firstText = null; double firstElapsedMilliseconds = 0;
         var playbackTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
-        playbackTimer.Tick += (_, _) => { playbackTimer.Stop(); player.PlaybackSession.Position = TimeSpan.Zero; player.Play(); };
+        playbackTimer.Tick += (_, _) => { playbackTimer.Stop(); if (args.Contains("--simulate-transcript"))
+            {
+                var method = typeof(PlaybackController).GetMethod("OnTranscript", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+                method.Invoke(controller, [new KotobaSUB.Core.Audio.TranscriptionSegment("こんにちは", TimeSpan.Zero, TimeSpan.FromSeconds(1), .9f, .1f, true)]);
+            }
+            else { player.PlaybackSession.Position = TimeSpan.Zero; player.Play(); } };
         var poll = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         poll.Tick += (_, _) =>
         {
