@@ -150,3 +150,7 @@ Added the opt-in startup toggle to the native settings window, sharing the exist
 ## M6 font weight checkpoint — 2026-09-15
 
 Implemented the Japanese font-weight setting across persisted preferences, native controls and glyph rendering. Continue with model-selection behavior and physical acceptance.
+
+## M6 text alignment checkpoint — 2026-09-15
+
+Added a persisted Left/Center/Right text-alignment setting for the Japanese token row. The native settings selector applies the value immediately, validation clamps unknown values back to Center, and the renderer uses the selected alignment when laying out token stacks. Native smoke verified a live Left change; the regenerated headless Chrome preview produced 78 sampled colors. Physical readability across window widths and mixed-DPI monitors remains part of the open acceptance matrix.

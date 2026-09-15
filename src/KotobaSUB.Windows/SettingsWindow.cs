@@ -27,6 +27,10 @@ internal sealed class SettingsWindow : Window
         fonts.SelectionChanged += (_, _) => { if (fonts.SelectedItem is string family) { current = current with { FontFamily = family }; changed(current); } };
         fonts.LostFocus += (_, _) => { if (!string.IsNullOrWhiteSpace(fonts.Text)) { current = current with { FontFamily = fonts.Text }; changed(current); } };
         panel.Children.Add(fonts);
+        panel.Children.Add(new TextBlock { Text = "Text alignment", Margin = new Thickness(0, 10, 0, 4) });
+        var alignment = new ComboBox { ItemsSource = new[] { "Left", "Center", "Right" }, SelectedItem = current.TextAlignmentMode };
+        alignment.SelectionChanged += (_, _) => { if (alignment.SelectedItem is string mode) { current = current with { TextAlignmentMode = mode }; changed(current); } };
+        panel.Children.Add(alignment);
         var sizeText = new TextBlock { Text = $"Japanese text size: {current.FontSize:0}", Margin = new Thickness(0, 16, 0, 4) };
         panel.Children.Add(sizeText);
         var size = new Slider { Minimum = 18, Maximum = 72, Value = current.FontSize, TickFrequency = 2, IsSnapToTickEnabled = true };

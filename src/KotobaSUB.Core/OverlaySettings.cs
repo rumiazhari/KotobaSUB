@@ -15,6 +15,7 @@ public sealed record OverlaySettings
     public double TranslationOpacity { get; init; } = .9;
     public double InactiveLineOpacity { get; init; } = .45;
     public string FontFamily { get; init; } = "Yu Gothic UI";
+    public string TextAlignmentMode { get; init; } = "Center";
     public bool Furigana { get; init; } = true;
     public bool Romaji { get; init; }
     public bool Gloss { get; init; } = true;
@@ -38,6 +39,7 @@ public sealed record OverlaySettings
         FuriganaOpacity = Clamp(FuriganaOpacity, 0.1, 1, .95), GlossOpacity = Clamp(GlossOpacity, 0.1, 1, .85),
         TranslationOpacity = Clamp(TranslationOpacity, 0.1, 1, .9), InactiveLineOpacity = Clamp(InactiveLineOpacity, 0.1, 1, .45),
         FontFamily = string.IsNullOrWhiteSpace(FontFamily) ? "Yu Gothic UI" : FontFamily,
+        TextAlignmentMode = TextAlignmentMode is "Left" or "Center" or "Right" ? TextAlignmentMode : "Center",
         MonitorDeviceName = string.IsNullOrWhiteSpace(MonitorDeviceName) ? null : MonitorDeviceName.Trim(),
         MonitorRelativeLeft = Clamp(MonitorRelativeLeft, 0, 1, 0), MonitorRelativeTop = Clamp(MonitorRelativeTop, 0, 1, 0)
     };
