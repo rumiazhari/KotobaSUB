@@ -116,3 +116,7 @@ Implemented monitor-aware overlay persistence: save active device identity and n
 ## M6 Windows package checkpoint — 2026-09-15
 
 Implemented `tools/package.ps1` for framework-dependent and self-contained win-x64 ZIP artifacts. It assembles published output with the required data and notices, rejects developer models/fixtures/artifacts, writes a manifest, and optionally extracts then smoke-tests the actual executable. Both variants were verified from clean extractions. Next M6 work is resource profiling and physical acceptance; installer UX and signing are still required for a release-ready installer.
+
+## M6 resource profiling checkpoint — 2026-09-15
+
+Added a machine-readable profile harness for idle and fixed local-ASR routing. Idle sampling is complete; routing currently exposes a packaged-process exit failure that must be diagnosed before performance acceptance. Next work is routing-profile diagnosis and physical acceptance.

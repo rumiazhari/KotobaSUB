@@ -60,3 +60,7 @@ JMdict is © EDRDG / Jim Breen, CC BY-SA 4.0. The derived index retains that dat
 Run `./tools/package.ps1 -Verify` to publish a framework-dependent `win-x64` ZIP under `artifacts/package`, extract it into a clean folder, and run the packaged tray-shell smoke. The archive contains `KotobaSUB.exe`, its pinned runtime dependencies, IPADIC/JMdict data, licenses, `LICENSE`, `README.md`, and `THIRD_PARTY_NOTICES.md`. It excludes downloaded Whisper models, developer audio fixtures, and test artifacts.
 
 Run `./tools/package.ps1 -SelfContained -Verify` for a standalone `win-x64` ZIP. A fresh checkout may first need `./.tools/dotnet/dotnet.exe restore src/KotobaSUB.Windows/KotobaSUB.Windows.csproj -r win-x64` to obtain Microsoft runtime packs. The model remains an explicit post-install tray download, so neither ZIP bundles it.
+
+## Resource profiling
+
+Run `./tools/profile.ps1 -Mode idle` for the tray's no-media baseline or `./tools/profile.ps1 -Mode routing` for the fixed local-ASR fixture. Each run samples working set, private bytes and process CPU every 250 ms and writes a JSON report under `artifacts/profile`; the routing mode never reads current listening metadata.

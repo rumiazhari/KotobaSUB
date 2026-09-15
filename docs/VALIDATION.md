@@ -74,3 +74,7 @@ Implemented persisted monitor device identity and normalized working-area placem
 ## Windows package checkpoint — 2026-09-15
 
 `tools/package.ps1 -Verify` published a framework-dependent win-x64 archive, expanded it into a clean directory and ran its actual `KotobaSUB.exe --app-smoke`; the result records `TrayVisible=True`. After restoring the required Microsoft win-x64 runtime packs, `tools/package.ps1 -SelfContained -Verify` produced a 132,532,713-byte self-contained ZIP and the extracted executable recorded the same successful tray result. Package assembly rejects Whisper models, developer audio fixtures and artifacts; the model remains an explicit post-install download. Installer UX, code signing and physical clean-machine installation remain unverified.
+
+## M6 resource profile checkpoint — 2026-09-15
+
+Added `tools/profile.ps1` to measure the actual Release executable in idle and fixed-fixture routing modes. Each report records sampled working set, private bytes and CPU milliseconds. Idle profiling completed successfully; the routing profile currently exits nonzero from the packaged process and needs a focused audio/model diagnosis before it can be used as acceptance evidence. No resource limit is claimed from the incomplete routing run.
