@@ -2,7 +2,7 @@ namespace KotobaSUB.Core.Audio;
 
 public enum AudioSourceHealth { Stopped, Starting, Running, Unavailable, Faulted }
 public sealed record AudioSourceStatus(AudioSourceHealth Health, string Message, Exception? Error = null);
-public sealed record AudioBlock(float[] Samples, int SampleRate, long FirstSample = -1);
+public sealed record AudioBlock(float[] Samples, int SampleRate, long FirstSample = -1, long CapturedAt = -1, long CaptureGeneration = 0);
 public sealed record SpeechWindow(float[] Samples, long FirstSample, bool FinalAfterSilence)
 {
     public TimeSpan Start => TimeSpan.FromSeconds(FirstSample / 16000d);

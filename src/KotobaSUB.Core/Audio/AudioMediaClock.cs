@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace KotobaSUB.Core.Audio;
 
-public sealed record AudioCaptureObservation(long FirstSample, long EndSample, long ObservedAt, bool Discontinuity);
+public sealed record AudioCaptureObservation(long FirstSample, long EndSample, long ObservedAt, bool Discontinuity, long CaptureGeneration = 0);
 
 /// Maps the capture sample timeline emitted by the loopback source to the SMTC
 /// media timeline. Capture timestamps are monotonic; inference completion time
@@ -22,6 +22,7 @@ public sealed class AudioMediaClock
     private double anchorMediaSeconds;
     private double rate = 1;
     private long lastEndSample = -1;
+    private long captureGeneration;
 
     public bool IsValid { get { lock (gate) return valid; } }
 
@@ -32,7 +33,7 @@ public sealed class AudioMediaClock
             if (snapshot?.Track.Identity != identity)
             {
                 identity = snapshot?.Track.Identity;
-                valid = false; reanchor = false; lastEndSample = -1;
+                valid = false; reanchor = false; lastEndSample = -1; captureGeneration = 0;
             }
             if (latest is { } previous && snapshot is { } current && valid)
             {
@@ -54,13 +55,14 @@ public sealed class AudioMediaClock
         lock (gate)
         {
             if (latest is null) return;
-            bool restart = observation.Discontinuity || !valid || reanchor || observation.FirstSample < anchorSample;
+            bool restart = observation.Discontinuity || !valid || reanchor || observation.FirstSample < anchorSample || observation.CaptureGeneration != captureGeneration;
             if (restart)
             {
                 anchorSample = observation.FirstSample;
                 anchorStopwatch = observation.ObservedAt;
                 anchorMediaSeconds = latest.PositionAt(observation.ObservedAt).TotalSeconds;
                 rate = Math.Clamp(latest.Rate, 0, MaximumRate);
+                captureGeneration = observation.CaptureGeneration;
                 valid = true; reanchor = false;
             }
             lastEndSample = observation.EndSample;
@@ -72,7 +74,7 @@ public sealed class AudioMediaClock
         lock (gate)
         {
             if (!valid || !double.IsFinite(captureTime.TotalSeconds)) return null;
-            long sample = anchorSample + (long)Math.Round(captureTime.TotalSeconds * SampleRate);
+            long sample = (long)Math.Round(captureTime.TotalSeconds * SampleRate);
             return TimeSpan.FromSeconds(Math.Max(0, PredictMediaSeconds(sample)));
         }
     }
@@ -82,7 +84,7 @@ public sealed class AudioMediaClock
         lock (gate)
         {
             if (!valid) return null;
-            long sample = anchorSample + (long)Math.Round(Math.Max(0, captureEnd.TotalSeconds) * SampleRate);
+            long sample = (long)Math.Round(Math.Max(0, captureEnd.TotalSeconds) * SampleRate);
             long expected = anchorStopwatch + (long)Math.Round((sample - anchorSample) / (double)SampleRate * Stopwatch.Frequency);
             return TimeSpan.FromSeconds(Math.Max(0, completedAt - expected) / (double)Stopwatch.Frequency);
         }
@@ -90,7 +92,7 @@ public sealed class AudioMediaClock
 
     public void Reset()
     {
-        lock (gate) { valid = false; reanchor = false; lastEndSample = -1; latest = null; identity = null; }
+        lock (gate) { valid = false; reanchor = false; lastEndSample = -1; captureGeneration = 0; latest = null; identity = null; }
     }
 
     private double PredictMediaSeconds(long sample) => anchorMediaSeconds + (sample - anchorSample) / (double)SampleRate * rate;

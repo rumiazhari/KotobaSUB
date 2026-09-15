@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ internal sealed class WasapiLoopbackAudioSource : IAudioSource
     private CancellationTokenSource? captureLifetime;
     private Task? captureTask;
     private long nextSample;
+    private long captureGeneration;
     private bool manualStop;
     private bool disposed;
     public AudioSourceStatus Status { get; private set; } = new(AudioSourceHealth.Stopped, "System audio stopped");
@@ -50,7 +52,7 @@ internal sealed class WasapiLoopbackAudioSource : IAudioSource
                 };
                 converter = new(format.SampleRate, format.Channels, encoding);
                 captureLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                manualStop = false; nextSample = 0; pending.Clear();
+                manualStop = false; nextSample = 0; pending.Clear(); captureGeneration++;
                 captureTask = CaptureAsync(recorder, captureLifetime.Token);
                 SetStatus(new(AudioSourceHealth.Running, $"System audio: {format.SampleRate} Hz, {format.Channels} ch, {format.BitsPerSample}-bit {format.Encoding}"));
             }
@@ -69,6 +71,7 @@ internal sealed class WasapiLoopbackAudioSource : IAudioSource
         {
             await foreach (AudioBuffer buffer in activeRecorder.CaptureAsync(token).ConfigureAwait(false))
             {
+                long capturedAt = Stopwatch.GetTimestamp();
                 lock (gate)
                 {
                     if (converter is null || recorder != activeRecorder) break;
@@ -79,7 +82,7 @@ internal sealed class WasapiLoopbackAudioSource : IAudioSource
                     while (pending.Count >= BlockSamples)
                     {
                         var block = new float[BlockSamples]; pending.CopyTo(0, block, 0, BlockSamples); pending.RemoveRange(0, BlockSamples);
-                        Enqueue(new(block, 16000, nextSample)); nextSample += BlockSamples;
+                        Enqueue(new(block, 16000, nextSample, capturedAt, captureGeneration)); nextSample += BlockSamples;
                     }
                 }
             }

@@ -130,7 +130,17 @@ internal static class AudioTests
             await session.StartAsync();
             var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(1));
             Check(result.Text == "こんにちは" && result.Final);
-        }));        test("transcription session cancels after missing model", () => RunAsync(async () =>
+        }));        test("intentional probe stop flushes continuous voiced partial window", () => RunAsync(async () =>
+        {
+            var source = new FakeSource(Enumerable.Repeat(Block(.08f, 3200), 20).ToArray());
+            var provider = new FakeTranscriber();
+            await using var session = new AudioTranscriptionSession(source, provider, _ => { });
+            await session.StartAsync();
+            await Task.Delay(100);
+            await session.StopAsync(flushPending: true);
+            Check(provider.Calls == 1, "probe stop must transcribe the useful partial window");
+        }));
+        test("transcription session cancels after missing model", () => RunAsync(async () =>
         {
             var source = new FakeSource([Block(.08f, 4800), Block(0, 9600)]);
             await using var session = new AudioTranscriptionSession(source, new MissingTranscriber(), _ => { });
@@ -196,9 +206,10 @@ internal static class AudioTests
     {
         private int concurrent;
         public int MaxConcurrent { get; private set; }
+        public int Calls { get; private set; }
         public async Task<IReadOnlyList<TranscriptionSegment>> TranscribeAsync(SpeechWindow window, CancellationToken cancellationToken)
         {
-            int active = Interlocked.Increment(ref concurrent); MaxConcurrent = Math.Max(MaxConcurrent, active);
+            Calls++; int active = Interlocked.Increment(ref concurrent); MaxConcurrent = Math.Max(MaxConcurrent, active);
             try { await Task.Delay(10, cancellationToken); return [Segment("こんにちは")]; }
             finally { Interlocked.Decrement(ref concurrent); }
         }

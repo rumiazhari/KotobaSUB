@@ -127,3 +127,7 @@ The Release solution build, native suite and deterministic tests pass. The focus
 ### Lyric timing/cache hardening evidence — 2026-09-15
 
 Deterministic tests cover capture-time mapping independent of simulated inference latency, seek and pause/resume re-anchoring, 0.5x/2x rate behavior, capture restart, stale track and discontinuity rejection, low-duty scheduler backoff, ±12 second acquisition, tight tracking, and cached candidate alternate discovery. Native and package checks remain required after this change. Controlled real singing acceptance still depends on local Whisper quality and is not represented as a committed recording fixture.
+
+## Capture-time and probe regressions — 2026-09-16
+
+The deterministic validation suite passes the probe-flush, absolute-sample clock, non-zero reanchor, capture-generation restart, simulated inference-latency, seek, pause/resume, playback-rate, discontinuity and scheduler-end tests. The suite also retains the existing acquisition/tracking, cache-alternate, stale-generation, persistence and no-raw-audio checks. These results establish deterministic behavior only; no real-song verification claim is made here.

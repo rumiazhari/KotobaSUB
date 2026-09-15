@@ -166,3 +166,6 @@ The glyph renderer now uses a persisted configurable black outline from 0 to 8 p
 ## Lyric verification and adaptive alignment plan — 2026-09-15
 
 The bounded shortlist, deterministic Japanese comparison, robust alignment estimator, generation-safe session evidence path and versioned learning store are implemented and covered by the focused suite. Playback feeds local ASR evidence only while structured lyrics remain unresolved, then stops after verification. Manual `SongOffsets` remains independent and is applied after learned alignment. Remaining work is low-duty strategic probe scheduling, richer piecewise correction and controlled real-audio acceptance documentation.
+## Timing hardening checkpoint — 2026-09-16
+
+Completed the capture-clock correctness pass: WASAPI blocks now carry capture-time timestamps and explicit session generations; the mapper uses absolute sample positions without double-counting; intentional low-duty probe stops flush useful voiced tails; and controller generation handling accepts only the intentional flush while rejecting stale callbacks. Focused deterministic tests and the Release build pass. Remaining work is controlled public real-song acceptance and reporting, not further timing architecture changes.

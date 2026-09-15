@@ -32,6 +32,7 @@ internal sealed class PlaybackController : IDisposable
     private Task asrTransition = Task.CompletedTask;
     private AudioSourceStatus asrStatus = new(AudioSourceHealth.Stopped, "Local ASR stopped");
     private bool asrDesired;
+    private bool flushProbeOnStop;
     private long asrGeneration;
     private long activeAsrGeneration;
     private long mediaGeneration;
@@ -132,7 +133,8 @@ internal sealed class PlaybackController : IDisposable
         bool probeActive = false;
         if (session.Timeline is not null && session.Selected is not null && session.Assessments.TryGetValue(session.Selected.Key, out var selectedAssessment))
             probeActive = probeScheduler.IsActive(now) || probeScheduler.TryStart(now, selectedAssessment.State);
-        SetAsrDesired(decision.ShouldRunAsr || probeActive);
+        bool flushProbe = session.Timeline is not null && !decision.ShouldRunAsr && !probeActive;
+        SetAsrDesired(decision.ShouldRunAsr || probeActive, flushProbe);
         status(SourceStatus(decision, audioStatus));
         if (decision.Frame != rendered) { learning.RenderFrame(decision.Frame); rendered = decision.Frame; }
         ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation, probeScheduler.NextDelay(now));
@@ -168,7 +170,7 @@ internal sealed class PlaybackController : IDisposable
         long media = Volatile.Read(ref mediaGeneration);
         _ = overlay.Dispatcher.BeginInvoke(new Action(() =>
         {
-            lock (asrGate) { if (disposed || !asrDesired || generation != asrGeneration) return; }
+            lock (asrGate) { if (disposed || generation != asrGeneration) return; }
             if (media != Volatile.Read(ref mediaGeneration) || session.Snapshot is null) return;
             var completedAt = Stopwatch.GetTimestamp();
             var observed = audioClock.MapCaptureTime(value.Start + (value.End - value.Start) / 2);
@@ -200,11 +202,13 @@ internal sealed class PlaybackController : IDisposable
         }));
     }
 
-    private void SetAsrDesired(bool value)
+    private void SetAsrDesired(bool value, bool flushProbe = false)
     {
         lock (asrGate)
         {
-            if (disposed || asrDesired == value) return;
+            if (disposed) return;
+            if (!value && flushProbe && asrDesired) flushProbeOnStop = true;
+            if (asrDesired == value) return;
             asrDesired = value; long generation = ++asrGeneration;
             asrTransition = asrTransition.ContinueWith(_ => ApplyAsrTargetAsync(value, generation), CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default).Unwrap();
         }
@@ -219,7 +223,7 @@ internal sealed class PlaybackController : IDisposable
                 lock (asrGate) activeAsrGeneration = operationGeneration;
                 await asr.StartAsync(lifetime.Token).ConfigureAwait(false);
             }
-            else await asr.StopAsync().ConfigureAwait(false);
+            else { bool flush; lock (asrGate) { flush = flushProbeOnStop; flushProbeOnStop = false; if (flush) activeAsrGeneration = operationGeneration; } await asr.StopAsync(flush).ConfigureAwait(false); }
             lock (asrGate) { if (!target) activeAsrGeneration = 0; }
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }

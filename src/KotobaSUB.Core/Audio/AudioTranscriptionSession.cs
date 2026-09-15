@@ -16,6 +16,7 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     private CancellationTokenSource? lifetime;
     private Task? worker;
     private bool disposed;
+    private int flushOnStop;
     public event Action<TranscriptionSegment>? Transcript;
     public event Action<AudioCaptureObservation>? CaptureObserved;
     public event Action<AudioSourceStatus>? StatusChanged;
@@ -61,7 +62,8 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
                 AudioBlock block = blocks.Current; pendingRead = null;
                 long firstSample = block.FirstSample >= 0 ? block.FirstSample : previousEnd >= 0 ? previousEnd : 0;
                 bool discontinuity = previousEnd >= 0 && firstSample != previousEnd;
-                CaptureObserved?.Invoke(new(firstSample, firstSample + block.Samples.LongLength, Stopwatch.GetTimestamp(), discontinuity));
+                long capturedAt = block.CapturedAt >= 0 ? block.CapturedAt : Stopwatch.GetTimestamp();
+                CaptureObserved?.Invoke(new(firstSample, firstSample + block.Samples.LongLength, capturedAt, discontinuity, block.CaptureGeneration));
                 previousEnd = firstSample + block.Samples.LongLength;
                 foreach (var window in activity.Push(block)) await ProcessWindowAsync(window, token).ConfigureAwait(false);
             }
@@ -74,6 +76,11 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
             {
                 try { await pendingRead.ConfigureAwait(false); }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            }
+            if (Interlocked.Exchange(ref flushOnStop, 0) == 1 && activity.Flush() is { } probeWindow)
+            {
+                try { await ProcessWindowAsync(probeWindow, CancellationToken.None).ConfigureAwait(false); }
+                catch (Exception ex) { log($"ASR probe flush failed: {ex.Message}"); }
             }
             await blocks.DisposeAsync().ConfigureAwait(false);
         }
@@ -93,9 +100,10 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     }
     private void OnSourceStatus(AudioSourceStatus value) => SetStatus(value);
     private void SetStatus(AudioSourceStatus value) { Status = value; StatusChanged?.Invoke(value); }
-    public async Task StopAsync()
+    public async Task StopAsync(bool flushPending = false)
     {
         var cancellation = lifetime; if (cancellation is null) return;
+        if (flushPending) Interlocked.Exchange(ref flushOnStop, 1);
         lifetime = null; cancellation.Cancel(); await source.StopAsync().ConfigureAwait(false);
         if (worker is not null) { try { await worker.ConfigureAwait(false); } catch (OperationCanceledException) { } }
         worker = null; cancellation.Dispose(); activity.Reset(); stable.SilenceReset();
