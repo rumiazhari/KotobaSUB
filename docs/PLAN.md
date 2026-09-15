@@ -120,3 +120,5 @@ Implemented `tools/package.ps1` for framework-dependent and self-contained win-x
 ## M6 resource profiling checkpoint — 2026-09-15
 
 Added a machine-readable profile harness for idle and fixed local-ASR routing. Idle sampling is complete; routing currently exposes a packaged-process exit failure that must be diagnosed before performance acceptance. Next work is routing-profile diagnosis and physical acceptance.
+
+The profile harness resolves the pinned model and Japanese fixture to absolute paths before launching the Release executable, so measurements do not depend on the caller's working directory. The `audio` profile is the accepted local inference/capture measurement; `routing` remains a quiet-output diagnostic until the physical audio matrix is available.

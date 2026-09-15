@@ -78,3 +78,5 @@ Implemented persisted monitor device identity and normalized working-area placem
 ## M6 resource profile checkpoint — 2026-09-15
 
 Added `tools/profile.ps1` to measure the actual Release executable in idle and fixed-fixture routing modes. Each report records sampled working set, private bytes and CPU milliseconds. Idle profiling completed successfully; the routing profile currently exits nonzero from the packaged process and needs a focused audio/model diagnosis before it can be used as acceptance evidence. No resource limit is claimed from the incomplete routing run.
+
+The corrected `tools/profile.ps1 -Mode audio` run used absolute model/fixture paths and completed successfully with 15 samples: peak working set 433,377,280 bytes, peak private bytes 931,930,112 bytes and 9,375 ms process CPU. This is valid fixed-fixture inference/capture evidence; the automatic routing profile remains unaccepted while ambient output audio contaminates its windows.

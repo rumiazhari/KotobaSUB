@@ -63,4 +63,4 @@ Run `./tools/package.ps1 -SelfContained -Verify` for a standalone `win-x64` ZIP.
 
 ## Resource profiling
 
-Run `./tools/profile.ps1 -Mode idle` for the tray's no-media baseline or `./tools/profile.ps1 -Mode routing` for the fixed local-ASR fixture. Each run samples working set, private bytes and process CPU every 250 ms and writes a JSON report under `artifacts/profile`; the routing mode never reads current listening metadata.
+Run `./tools/profile.ps1 -Mode idle` for the tray's no-media baseline or `./tools/profile.ps1 -Mode audio` for the fixed local CPU inference and WASAPI fixture. `-Mode routing` profiles the complete automatic fallback path when the default output is quiet. Each run samples working set, private bytes and process CPU every 250 ms and writes a JSON report under `artifacts/profile`; no mode reads current listening metadata.

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("idle", "routing")]
+    [ValidateSet("idle", "audio", "routing")]
     [string]$Mode = "idle",
     [string]$Output = "artifacts/profile"
 )
@@ -10,7 +10,13 @@ $exe = Join-Path $root "src/KotobaSUB.Windows/bin/Release/net10.0-windows10.0.19
 if (!(Test-Path -LiteralPath $exe)) { throw "Build the Release Windows executable before profiling: $exe" }
 $directory = [IO.Path]::GetFullPath((Join-Path $root $Output))
 New-Item -ItemType Directory -Path $directory | Out-Null
-$arguments = if ($Mode -eq "routing") { "--routing-smoke --output `"$directory/routing`"" } else { "--app-smoke" }
+$model = Join-Path $root ".data/models/ggml-base.bin"
+$fixture = Join-Path $root ".data/fixtures/konnichiwa.mp3"
+$arguments = switch ($Mode) {
+    "audio" { "--audio-smoke --model `"$model`" --fixture `"$fixture`" --output `"$directory/audio`""; break }
+    "routing" { "--routing-smoke --fixture `"$fixture`" --output `"$directory/routing`""; break }
+    default { "--app-smoke" }
+}
 $process = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $root -PassThru
 $samples = [Collections.Generic.List[object]]::new()
 try {
