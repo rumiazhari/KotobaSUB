@@ -11,6 +11,7 @@ string directory = Path.Combine(Path.GetTempPath(), "KotobaSUB-tests-" + Guid.Ne
 Directory.CreateDirectory(directory);
 try
 {
+    LyricsTests.Run(Test, directory);
     Test("safe settings limits", () => { var s = new OverlaySettings { Width = -1, FontSize = double.NaN, Top = double.PositiveInfinity }.Validate(); Equal(320d, s.Width); Equal(36d, s.FontSize); Equal(650d, s.Top); });
     Test("settings roundtrip and overwrite", () => { var store = new SettingsStore(Path.Combine(directory, "settings.json"), _ => { }); var s = new OverlaySettings { Left = -1000, Furigana = false, FontSize = 42 }; store.Save(s); Equal(s, store.Load()); store.Save(s with { Gloss = false }); Equal(false, store.Load().Gloss); });
     Test("corrupt settings report recovery", () => { string path = Path.Combine(directory, "bad.json"); File.WriteAllText(path, "{bad"); var reports = new List<string>(); Equal(new OverlaySettings(), new SettingsStore(path, reports.Add).Load()); Equal(1, reports.Count); });

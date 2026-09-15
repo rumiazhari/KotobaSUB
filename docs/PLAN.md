@@ -35,3 +35,15 @@ Inspect Git status and this document first. Preserve existing edits. Local tools
 
 ## Status after foundation implementation
 Milestone 0 documents, solution, license, logging, core regressions and Windows CI are in place. Milestone 1 native rendering, tray controls, basic hotkeys, edit/lock, live layer/text-size settings and geometry persistence are implemented. Release build, six core regressions, eleven native assertions and browser visual review passed; see VALIDATION.md for the important manual acceptance limits. M2–M6 remain unimplemented. Next work should begin with SMTC and structured lyrics after physical overlay acceptance, not claim complete MVP.
+
+## Milestone 2 implementation sequence (2026-09-15)
+1. Add Core media snapshots, monotonic playback projection, LRC parser/timeline, and attributed metadata matching. Preserve raw names and reject version/duration mismatches before sync preference.
+2. Add HTTP clients for LRCLIB and NetEase with bounded response/time limits; successful cache records retain raw original/translation/romanization. Failed searches are not cached permanently. Per-song offsets persist independently.
+3. Add an event-driven SMTC adapter in Windows, marshaled onto the dispatcher, and a cancellable lyrics session controller. Track identity and async request generation must prevent old responses from replacing new media. No idle poll; schedule only the next cue boundary.
+4. Wire automatic source status, retry/wrong match, sync correction and optional previous/next context into the existing tray/overlay. Preview remains explicit and suspends real rendering.
+5. Add parser/scoring/timing/cache/cancellation regressions and real Windows SMTC/network smoke modes. Inspect actual native captures in the browser after UI changes. Record live-source limitations, build/test evidence, then commit.
+
+## Status after structured-lyrics implementation
+Milestone 2 now includes real SMTC event integration, LRCLIB/NetEase clients, strict candidate scoring, local kana/explicit aliases, synchronized LRC parsing, bounded successful cache, sync offsets, pause/retry, and optional context lines. Build, 20 core regressions, 14 native assertions, browser capture review, fixed-query live services, a real Windows generated-media event fixture and isolated tray-shell smoke passed. See VALIDATION.md for the exact evidence and remaining end-to-end restrictions. Do not redo these completed components.
+
+Next: Milestone 3 Japanese tokenizer/readings/JMdict offline index, including dictionary-backed metadata reading aliases and learning annotation integration. Current lyrics carry no computed readings/glosses. Continue M4 local audio/ASR and M5 priority routing afterward. Full current-track browser playback acceptance, physical game interaction, mixed-DPI monitor reliability, persistent wrong-match exclusions and binary redistribution/packaging checks remain open. No remote was present; check before any later push.

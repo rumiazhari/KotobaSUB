@@ -11,7 +11,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     private readonly Border edit = new() { BorderBrush = Brushes.SlateGray, BorderThickness = new Thickness(1), Background = new SolidColorBrush(Color.FromArgb(25, 80, 100, 120)) };
     private readonly Thumb resize = new() { Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Cursor = Cursors.SizeNWSE };
     private readonly Viewbox fittedText = new() { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, Margin = new Thickness(12) };
-    private SubtitleLine? current;
+    private SubtitleFrame current = new(null);
     internal NativeOverlay Native { get; private set; } = null!;
     internal OverlaySettings Preferences { get; private set; }
     internal bool Locked { get; private set; } = true;
@@ -28,7 +28,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         edit.MouseLeftButtonDown += (_, e) => { if (!Locked && e.ButtonState == MouseButtonState.Pressed) { DragMove(); GeometryChanged?.Invoke(); } };
         resize.DragDelta += (_, e) => { Width = Math.Max(MinWidth, Width + e.HorizontalChange); Height = Math.Max(MinHeight, Height + e.VerticalChange); };
         resize.DragCompleted += (_, _) => GeometryChanged?.Invoke();
-        SizeChanged += (_, _) => Render(current);
+        SizeChanged += (_, _) => RenderFrame(current);
         SourceInitialized += (_, _) => Native = new NativeOverlay(this);
         Closed += (_, _) => Native?.Dispose();
         Apply(settings);
@@ -40,7 +40,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         Height = Math.Min(Preferences.Height, SystemParameters.VirtualScreenHeight);
         Left = Math.Clamp(Preferences.Left, SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width);
         Top = Math.Clamp(Preferences.Top, SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height);
-        Render(current);
+        RenderFrame(current);
     }
     internal OverlaySettings Snapshot() => Preferences with { Left = Left, Top = Top, Width = Width, Height = Height };
     internal void SetLocked(bool value)
@@ -49,10 +49,12 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         edit.Visibility = resize.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
         text.IsHitTestVisible = false;
     }
-    public void Render(SubtitleLine? line)
+    public void Render(SubtitleLine? line) => RenderFrame(new(line));
+    public void RenderFrame(SubtitleFrame frame)
     {
-        current = line; text.Children.Clear(); text.MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36));
+        current = frame; var line = frame.Current; text.Children.Clear(); text.MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36));
         if (line is null) return;
+        if (Preferences.PreviousLine && frame.Previous is { } previous && !string.IsNullOrWhiteSpace(previous.OriginalText)) text.Children.Add(Label(previous.OriginalText, Preferences.FontSize * .6, .45));
         var words = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36)) };
         foreach (var token in line.Tokens)
         {
@@ -66,6 +68,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         if (line.Tokens.Count == 0) words.Children.Add(Label(line.OriginalText, Preferences.FontSize, 1));
         text.Children.Add(words);
         if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Label(line.Translation, Preferences.FontSize * .55, .9));
+        if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Label(next.OriginalText, Preferences.FontSize * .6, .45));
     }
     private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily)
     {

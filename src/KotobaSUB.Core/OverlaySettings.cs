@@ -12,10 +12,14 @@ public sealed record OverlaySettings
     public bool Furigana { get; init; } = true;
     public bool Gloss { get; init; } = true;
     public bool Translation { get; init; }
+    public bool PreviousLine { get; init; }
+    public bool NextLine { get; init; }
+    public double GlobalOffsetSeconds { get; init; }
     public double TokenSpacing { get; init; } = 8;
 
     public OverlaySettings Validate() => this with
     {
+        GlobalOffsetSeconds = Clamp(GlobalOffsetSeconds, -30, 30, 0),
         Version = 1, Left = Finite(Left, 200), Top = Finite(Top, 650),
         Width = Clamp(Width, 320, 3840, 1000), Height = Clamp(Height, 140, 1200, 240),
         FontSize = Clamp(FontSize, 18, 72, 36), TokenSpacing = Clamp(TokenSpacing, 0, 32, 8),

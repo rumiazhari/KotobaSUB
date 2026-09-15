@@ -49,6 +49,22 @@ internal static class NativeSmoke
                 Check(overlay.Snapshot().Width == 800, "interactive geometry snapshot updates");
                 overlay.Render(null); overlay.UpdateLayout();
                 Check(HasTransparentCorner(overlay), "empty provider renders no background");
+                overlay.Apply(new OverlaySettings { Left = 50, Top = 50, Width = 1000, Height = 320, PreviousLine = true, NextLine = true });
+                var timeline = new KotobaSUB.Core.Lyrics.LyricTimeline("[00:00]今日は晴れです\n[00:03]私は明日学校に行きます\n[00:06]また会いましょう", null, TimeSpan.FromSeconds(10));
+                overlay.RenderFrame(timeline.At(TimeSpan.FromSeconds(4))); overlay.UpdateLayout();
+                Capture(overlay, Path.Combine(directory, "context-lines.png"));
+                OverlaySettings? edited = null;
+                var settings = new SettingsWindow(overlay.Snapshot(), value => { edited = value; overlay.Apply(value); });
+                settings.Show(); settings.UpdateLayout();
+                var panel = (StackPanel)((ScrollViewer)settings.Content).Content;
+                var nextToggle = panel.Children.OfType<CheckBox>().Single(c => (string)c.Content == "Next line");
+                nextToggle.IsChecked = false; nextToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Check(edited?.NextLine == false, "settings context toggle applies live");
+                panel.Children.OfType<Slider>().First().Value = 42;
+                Check(edited?.FontSize == 42, "settings font slider applies live");
+                panel.Children.OfType<Slider>().Last().Value = 1.5;
+                Check(edited?.GlobalOffsetSeconds == 1.5, "settings sync slider applies live");
+                settings.UpdateLayout(); Capture(settings, Path.Combine(directory, "settings.png")); settings.Close();
                 result = 0;
             }
             catch (Exception ex) { results.Add("FAIL " + ex); }
