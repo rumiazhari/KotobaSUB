@@ -28,6 +28,7 @@ internal static class AudioTests
         {
             var gate = new SpeechActivityGate();
             for (int i = 0; i < 10; i++) Check(gate.Push(Block(0, 1600)).Count == 0);
+            Check(gate.Push(Block(.003f, 1600)).Count == 0);
             Check(gate.Push(Block(.1f, 1600)).Count == 0);
             for (int i = 0; i < 7; i++) Check(gate.Push(Block(0, 1600)).Count == 0);
             Check(gate.Flush() is null);
@@ -78,7 +79,17 @@ internal static class AudioTests
             Check(session.Status.Health == AudioSourceHealth.Faulted);
             await session.StopAsync(); Check(source.Stopped && session.Status.Health == AudioSourceHealth.Stopped);
         }));
-        test("transcription session cancels after missing model", () => RunAsync(async () =>
+        test("transcription session flushes a short utterance after input inactivity", () => RunAsync(async () =>
+        {
+            var source = new FakeSource([Block(.08f, 4800)]);
+            var provider = new FakeTranscriber();
+            await using var session = new AudioTranscriptionSession(source, provider, _ => { }, TimeSpan.FromMilliseconds(20));
+            var completion = new TaskCompletionSource<TranscriptionSegment>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.Transcript += value => completion.TrySetResult(value);
+            await session.StartAsync();
+            var result = await completion.Task.WaitAsync(TimeSpan.FromSeconds(1));
+            Check(result.Text == "こんにちは" && result.Final);
+        }));        test("transcription session cancels after missing model", () => RunAsync(async () =>
         {
             var source = new FakeSource([Block(.08f, 4800), Block(0, 9600)]);
             await using var session = new AudioTranscriptionSession(source, new MissingTranscriber(), _ => { });

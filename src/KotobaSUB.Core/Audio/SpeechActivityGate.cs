@@ -16,7 +16,7 @@ public sealed class SpeechActivityGate
     private int voicedSamples;
     private int silentSamples;
 
-    public SpeechActivityGate(float rmsThreshold = .012f, double minimumVoicedSeconds = .24, double trailingSilenceSeconds = .6, double maximumWindowSeconds = 6, double overlapSeconds = .75)
+    public SpeechActivityGate(float rmsThreshold = .004f, double minimumVoicedSeconds = .24, double trailingSilenceSeconds = .6, double maximumWindowSeconds = 6, double overlapSeconds = .75)
     {
         if (rmsThreshold is <= 0 or > 1 || minimumVoicedSeconds <= 0 || trailingSilenceSeconds <= 0 || maximumWindowSeconds <= 1 || overlapSeconds < 0 || overlapSeconds >= maximumWindowSeconds) throw new ArgumentOutOfRangeException();
         threshold = rmsThreshold;

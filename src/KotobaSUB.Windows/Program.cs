@@ -10,6 +10,7 @@ internal static class Program
     {
         if (args.Contains("--learning-smoke")) return LearningSmoke.Run();
         if (args.Contains("--audio-smoke")) return AudioSmoke.Run(args);
+        if (args.Contains("--routing-smoke")) return RoutingSmoke.Run(args);
         if (args.Contains("--smoke")) return NativeSmoke.Run(args);
         if (args.Contains("--media-smoke")) return MediaSmoke.Run(args);
         using var instance = new System.Threading.Mutex(true, args.Contains("--app-smoke") ? "Local\\KotobaSUB.Smoke" : "Local\\KotobaSUB", out bool first);
@@ -78,7 +79,7 @@ internal static class Program
         if (!overlay.Native.Register(2, 0x79)) Report("Ctrl+Alt+F10 is unavailable. Use the tray to unlock the overlay.");
         playback.SetPreview(preview);
         if (!args.Contains("--app-smoke")) app.Dispatcher.BeginInvoke(new Action(async () => await playback.StartAsync()));
-        Log("Started native overlay with automatic SMTC/LRCLIB/NetEase routing.");
+        Log("Started native overlay with automatic SMTC/lyrics/local-ASR routing.");
         // The shell smoke explicitly uses sample data and does not start SMTC.
         if (args.Contains("--app-smoke"))
         {

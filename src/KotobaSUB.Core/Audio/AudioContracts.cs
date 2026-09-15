@@ -8,7 +8,7 @@ public sealed record SpeechWindow(float[] Samples, long FirstSample, bool FinalA
     public TimeSpan Start => TimeSpan.FromSeconds(FirstSample / 16000d);
     public TimeSpan End => TimeSpan.FromSeconds((FirstSample + Samples.LongLength) / 16000d);
 }
-public sealed record TranscriptionSegment(string Text, TimeSpan Start, TimeSpan End, float Probability, float NoSpeechProbability);
+public sealed record TranscriptionSegment(string Text, TimeSpan Start, TimeSpan End, float Probability, float NoSpeechProbability, bool Final = false);
 
 public interface IAudioSource : IAsyncDisposable
 {

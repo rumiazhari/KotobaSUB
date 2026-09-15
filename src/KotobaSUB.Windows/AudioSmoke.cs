@@ -36,7 +36,7 @@ internal static class AudioSmoke
         double inferenceMilliseconds = watch.Elapsed.TotalMilliseconds;
         Log($"PASS real CPU Japanese inference: {text}; {inferenceMilliseconds:F0}ms");
 
-        int captured = 0; double peak = 0; int restartCaptured = 0; double restartPeak = 0;
+        int captured = 0; double peak = 0; double rmsPeak = 0; int restartCaptured = 0; double restartPeak = 0; double restartRmsPeak = 0;
         await using (var source = new WasapiLoopbackAudioSource())
         {
             source.StatusChanged += value => Log($"Capture {value.Health}: {value.Message}");
@@ -47,7 +47,7 @@ internal static class AudioSmoke
                 player.Play();
                 await foreach (var block in source.ReadAllAsync(timeout.Token))
                 {
-                    captured += block.Samples.Length; peak = Math.Max(peak, block.Samples.Max(Math.Abs));
+                    captured += block.Samples.Length; peak = Math.Max(peak, block.Samples.Max(Math.Abs)); rmsPeak = Math.Max(rmsPeak, Math.Sqrt(block.Samples.Sum(sample => sample * sample) / block.Samples.Length));
                     if (peak > .002 && captured >= 6400) break;
                 }
                 player.Pause(); await source.StopAsync();
@@ -60,7 +60,7 @@ internal static class AudioSmoke
                 player.Play();
                 await foreach (var block in source.ReadAllAsync(timeout.Token))
                 {
-                    restartCaptured += block.Samples.Length; restartPeak = Math.Max(restartPeak, block.Samples.Max(Math.Abs));
+                    restartCaptured += block.Samples.Length; restartPeak = Math.Max(restartPeak, block.Samples.Max(Math.Abs)); restartRmsPeak = Math.Max(restartRmsPeak, Math.Sqrt(block.Samples.Sum(sample => sample * sample) / block.Samples.Length));
                     if (restartPeak > .002 && restartCaptured >= 6400) break;
                 }
                 player.Pause(); await source.StopAsync();
@@ -68,8 +68,8 @@ internal static class AudioSmoke
             }
         }
         Check(peak > .002 && restartPeak > .002, "WASAPI loopback did not capture the played fixture in both cycles");
-        Log($"PASS real WASAPI loopback and restart: first={captured / 16000d:F2}s/{peak:F4}, second={restartCaptured / 16000d:F2}s/{restartPeak:F4}");
-        File.WriteAllText(Path.Combine(output, "results.json"), JsonSerializer.Serialize(new { text, inferenceMilliseconds, capturedSamples = captured, peak, restartCapturedSamples = restartCaptured, restartPeak, messages }, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) }));
+        Log($"PASS real WASAPI loopback and restart: first={captured / 16000d:F2}s/peak {peak:F4}/rms {rmsPeak:F4}, second={restartCaptured / 16000d:F2}s/peak {restartPeak:F4}/rms {restartRmsPeak:F4}");
+        File.WriteAllText(Path.Combine(output, "results.json"), JsonSerializer.Serialize(new { text, inferenceMilliseconds, capturedSamples = captured, peak, rmsPeak, restartCapturedSamples = restartCaptured, restartPeak, restartRmsPeak, messages }, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.Create(UnicodeRanges.All) }));
         return 0;
     }
     private static float[] Decode(string path)

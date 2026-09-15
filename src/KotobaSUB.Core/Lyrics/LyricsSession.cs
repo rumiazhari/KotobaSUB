@@ -40,7 +40,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log) 
         request?.Cancel(); request = null; generation++;
         Selected = null; Timeline = null;
         if (Snapshot is not { } snapshot || string.IsNullOrWhiteSpace(snapshot.Track.Title) || string.IsNullOrWhiteSpace(snapshot.Track.Artist))
-        { Status = "No music metadata — ASR not installed"; return; }
+        { Status = "No music metadata"; return; }
         Status = "Finding synchronized lyrics";
         var cancellation = new CancellationTokenSource(); request = cancellation;
         Pending = ResolveAsync(snapshot.Track, generation, cancellation, bypassCache);
@@ -53,14 +53,14 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log) 
             if (disposed || cancellation.IsCancellationRequested || expectedGeneration != generation) return;
             Selected = result;
             Timeline = result?.Original is { } text ? new LyricTimeline(text, result.Translation, track.Duration) : null;
-            Status = result is null ? "No timed lyrics — ASR not installed" : result.Source;
+            Status = result is null ? "No timed lyrics" : result.Source;
             Changed?.Invoke();
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
             log($"lyrics session failed: {ex}");
-            if (!disposed && expectedGeneration == generation) { Status = "Lyrics unavailable — ASR not installed"; Changed?.Invoke(); }
+            if (!disposed && expectedGeneration == generation) { Status = "Lyrics unavailable"; Changed?.Invoke(); }
         }
         finally { if (request == cancellation) request = null; cancellation.Dispose(); }
     }

@@ -11,15 +11,18 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     private readonly SpeechActivityGate activity = new();
     private readonly StableTranscript stable = new();
     private readonly Action<string> log;
+    private readonly TimeSpan inactivityFlush;
     private CancellationTokenSource? lifetime;
     private Task? worker;
     private bool disposed;
     public event Action<TranscriptionSegment>? Transcript;
     public event Action<AudioSourceStatus>? StatusChanged;
     public AudioSourceStatus Status { get; private set; } = new(AudioSourceHealth.Stopped, "Local ASR stopped");
-    public AudioTranscriptionSession(IAudioSource source, ITranscriptionProvider transcriber, Action<string> log)
+    public AudioTranscriptionSession(IAudioSource source, ITranscriptionProvider transcriber, Action<string> log, TimeSpan? inactivityFlush = null)
     {
         this.source = source; this.transcriber = transcriber; this.log = log;
+        this.inactivityFlush = inactivityFlush ?? TimeSpan.FromMilliseconds(650);
+        if (this.inactivityFlush <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(inactivityFlush));
         source.StatusChanged += OnSourceStatus;
     }
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -31,13 +34,42 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     }
     private async Task ProcessAsync(CancellationToken token)
     {
+        IAsyncEnumerator<AudioBlock> blocks = source.ReadAllAsync(token).GetAsyncEnumerator(token);
+        Task<bool>? pendingRead = null;
         try
         {
-            await foreach (var block in source.ReadAllAsync(token).ConfigureAwait(false))
+            while (true)
+            {
+                pendingRead ??= blocks.MoveNextAsync().AsTask();
+                Task delay = Task.Delay(inactivityFlush, token);
+                Task completed = await Task.WhenAny(pendingRead, delay).ConfigureAwait(false);
+                if (completed == delay)
+                {
+                    await delay.ConfigureAwait(false);
+                    if (activity.Flush() is { } idleWindow) await ProcessWindowAsync(idleWindow, token).ConfigureAwait(false);
+                    continue;
+                }
+                if (!await pendingRead.ConfigureAwait(false))
+                {
+                    pendingRead = null;
+                    if (activity.Flush() is { } finalWindow) await ProcessWindowAsync(finalWindow, token).ConfigureAwait(false);
+                    break;
+                }
+                AudioBlock block = blocks.Current; pendingRead = null;
                 foreach (var window in activity.Push(block)) await ProcessWindowAsync(window, token).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (Exception ex) { log($"ASR pipeline failed: {ex}"); SetStatus(new(AudioSourceHealth.Faulted, "Local transcription failed", ex)); }
+        finally
+        {
+            if (pendingRead is not null)
+            {
+                try { await pendingRead.ConfigureAwait(false); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            }
+            await blocks.DisposeAsync().ConfigureAwait(false);
+        }
     }
     private async Task ProcessWindowAsync(SpeechWindow window, CancellationToken token)
     {
@@ -48,7 +80,7 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
         if (text is not null)
         {
             float confidence = segments.Count == 0 ? 0 : segments.Average(s => s.Probability);
-            Transcript?.Invoke(new(text, window.Start, window.End, confidence, segments.Count == 0 ? 1 : segments.Max(s => s.NoSpeechProbability)));
+            Transcript?.Invoke(new(text, window.Start, window.End, confidence, segments.Count == 0 ? 1 : segments.Max(s => s.NoSpeechProbability), window.FinalAfterSilence));
         }
         if (window.FinalAfterSilence) stable.SilenceReset();
     }
