@@ -68,6 +68,9 @@ internal static class NativeSmoke
                 var nextToggle = panel.Children.OfType<CheckBox>().Single(c => (string)c.Content == "Next line");
                 nextToggle.IsChecked = false; nextToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Check(edited?.NextLine == false, "settings context toggle applies live");
+                var internetLyricsToggle = panel.Children.OfType<CheckBox>().Single(c => (string)c.Content == "Internet lyrics only (disable local ASR)");
+                internetLyricsToggle.IsChecked = true; internetLyricsToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                Check(edited?.InternetLyricsOnly == true, "settings internet lyrics only toggle applies live");
                 var fontCombo = panel.Children.OfType<ComboBox>().First(c => c.Items.Contains("Meiryo UI"));
                 fontCombo.SelectedItem = "Meiryo UI";
                 Check(edited?.FontFamily == "Meiryo UI", "settings font family applies live");

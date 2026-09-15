@@ -107,7 +107,7 @@ internal sealed class PlaybackController : IDisposable
     {
         if (preview || paused) return;
         session.Retry(rejectCurrent);
-        if (asrStatus.Health is AudioSourceHealth.Faulted or AudioSourceHealth.Unavailable) RestartAsr();
+        if (!overlay.Preferences.InternetLyricsOnly && (asrStatus.Health is AudioSourceHealth.Faulted or AudioSourceHealth.Unavailable)) RestartAsr();
     }
 
     public void AdjustSync(double seconds)
@@ -127,14 +127,13 @@ internal sealed class PlaybackController : IDisposable
         var structured = session.Frame(offset);
         AudioSourceStatus audioStatus; lock (asrGate) audioStatus = asrStatus;
         long now = Stopwatch.GetTimestamp();
-        var decision = router.Evaluate(false, session.Timeline is not null, structured, audioStatus.Health, now);
-        bool verifyStructured = session.Selected is { } selected && session.Assessments.TryGetValue(selected.Key, out var assessment)
-            && assessment.State is not (LyricConfidenceState.Verified or LyricConfidenceState.Rejected);
+        bool asrEnabled = !overlay.Preferences.InternetLyricsOnly;
+        var decision = router.Evaluate(false, session.Timeline is not null, structured, audioStatus.Health, now, asrEnabled);
         bool probeActive = false;
-        if (session.Timeline is not null && session.Selected is not null && session.Assessments.TryGetValue(session.Selected.Key, out var selectedAssessment))
+        if (asrEnabled && session.Timeline is not null && session.Selected is not null && session.Assessments.TryGetValue(session.Selected.Key, out var selectedAssessment))
             probeActive = probeScheduler.IsActive(now) || probeScheduler.TryStart(now, selectedAssessment.State);
         bool flushProbe = session.Timeline is not null && !decision.ShouldRunAsr && !probeActive;
-        SetAsrDesired(decision.ShouldRunAsr || probeActive, flushProbe);
+        SetAsrDesired(asrEnabled && (decision.ShouldRunAsr || probeActive), flushProbe && asrEnabled);
         status(SourceStatus(decision, audioStatus));
         if (decision.Frame != rendered) { learning.RenderFrame(decision.Frame); rendered = decision.Frame; }
         ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation, session.Timeline is not null ? probeScheduler.NextDelay(now) : null);
@@ -152,6 +151,7 @@ internal sealed class PlaybackController : IDisposable
         SubtitleSourceKind.LocalAsr => "Local Japanese ASR",
         _ when decision.ShouldRunAsr && audioStatus.Health == AudioSourceHealth.Running => "Listening with local Japanese ASR",
         _ when decision.ShouldRunAsr && audioStatus.Health == AudioSourceHealth.Starting => "Starting local Japanese ASR",
+        _ when overlay.Preferences.InternetLyricsOnly && decision.Source == SubtitleSourceKind.None => "Internet lyrics only — no timed lyrics found",
         _ when audioStatus.Health is AudioSourceHealth.Unavailable or AudioSourceHealth.Faulted => audioStatus.Message,
         _ => session.Status
     };
@@ -171,6 +171,7 @@ internal sealed class PlaybackController : IDisposable
         _ = overlay.Dispatcher.BeginInvoke(new Action(() =>
         {
             lock (asrGate) { if (disposed || generation != asrGeneration) return; }
+            if (overlay.Preferences.InternetLyricsOnly) return;
             if (media != Volatile.Read(ref mediaGeneration)) return;
             var completedAt = Stopwatch.GetTimestamp();
             var observed = audioClock.MapCaptureTime(value.Start + (value.End - value.Start) / 2);
@@ -184,7 +185,7 @@ internal sealed class PlaybackController : IDisposable
                 foreach (var candidate in session.Candidates) session.AcceptEvidence(candidate.Candidate.Key, value, observed.Value, progress);
             }
             if (latency is not null && session.Selected is { } selected && session.Assessments.TryGetValue(selected.Key, out var assessment)) probeScheduler.RecordInference(latency.Value, assessment.State);
-            router.AcceptTranscript(value, Stopwatch.GetTimestamp()); rendered = null; Refresh();
+            router.AcceptTranscript(value, Stopwatch.GetTimestamp(), !overlay.Preferences.InternetLyricsOnly); rendered = null; Refresh();
         }));
     }
 

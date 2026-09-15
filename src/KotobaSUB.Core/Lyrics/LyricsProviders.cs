@@ -112,9 +112,8 @@ public sealed class LyricsHttpClient(HttpClient client)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(6));
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.UserAgent.ParseAdd("KotobaSUB/0.2");
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
+
+        using var response = await SendWithRetryAsync(uri, timeout.Token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
         using var bytes = new MemoryStream();
@@ -126,6 +125,19 @@ public sealed class LyricsHttpClient(HttpClient client)
             bytes.Write(buffer, 0, count);
         }
         return JsonDocument.Parse(bytes.ToArray());
+    }
+    private async Task<HttpResponseMessage> SendWithRetryAsync(string uri, CancellationToken token)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            request.Headers.UserAgent.ParseAdd("KotobaSUB/0.2");
+            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+            if (attempt != 0 || response.StatusCode is not (System.Net.HttpStatusCode.BadGateway or System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout))
+                return response;
+            response.Dispose();
+            await Task.Delay(250, token).ConfigureAwait(false);
+        }
     }
     internal static string Text(JsonElement element, string key) => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
     internal static double Number(JsonElement element, string key) => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var n) && double.IsFinite(n) ? n : 0;

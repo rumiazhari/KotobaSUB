@@ -15,8 +15,9 @@ public sealed class SubtitleSourceRouter(TimeSpan? fallbackDelay = null, TimeSpa
     private long transcriptReceived;
     private bool transcriptWasFinal = true;
 
-    public void AcceptTranscript(TranscriptionSegment value, long timestamp)
+    public void AcceptTranscript(TranscriptionSegment value, long timestamp, bool asrEnabled = true)
     {
+        if (!asrEnabled) { ClearTranscript(); return; }
         string text = value.Text.Trim();
         if (text.Length == 0) return;
         if (transcript is not null && !transcriptWasFinal)
@@ -28,7 +29,7 @@ public sealed class SubtitleSourceRouter(TimeSpan? fallbackDelay = null, TimeSpa
 
     public void ClearTranscript() { transcript = null; transcriptWasFinal = true; }
 
-    public SourceRoutingDecision Evaluate(bool suspended, bool hasStructuredTimeline, SubtitleFrame structured, AudioSourceHealth asrHealth, long timestamp)
+    public SourceRoutingDecision Evaluate(bool suspended, bool hasStructuredTimeline, SubtitleFrame structured, AudioSourceHealth asrHealth, long timestamp, bool asrEnabled = true)
     {
         if (suspended)
         {
@@ -39,6 +40,11 @@ public sealed class SubtitleSourceRouter(TimeSpan? fallbackDelay = null, TimeSpa
         {
             missingSince = null; ClearTranscript();
             return new(SubtitleSourceKind.StructuredLyrics, structured, false, null);
+        }
+        if (!asrEnabled)
+        {
+            missingSince = null; ClearTranscript();
+            return new(SubtitleSourceKind.None, new(null), false, null);
         }
         missingSince ??= timestamp;
         if (asrHealth is AudioSourceHealth.Unavailable or AudioSourceHealth.Faulted) ClearTranscript();

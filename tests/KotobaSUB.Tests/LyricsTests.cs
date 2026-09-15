@@ -138,6 +138,25 @@ internal static class LyricsTests
             var result = await resolver.ResolveCandidatesAsync(Track(), new HashSet<string>(), true, CancellationToken.None);
             Check(result.Single().Candidate.Id == "6" && source.Fetched.Count <= 12);
         }));
+        test("public artist video titles match their own provider recordings", () =>
+        {
+            var nemo = new MediaTrack("browser", ArtistBenchmark.Tracks[2].Title, ArtistBenchmark.Tracks[2].Artist, "", TimeSpan.FromSeconds(180));
+            Check(MetadataMatching.Evaluate(nemo, "カタチのないもの", "涼海ネモ", nemo.Duration).Accepted);
+            var kotoha = new MediaTrack("browser", ArtistBenchmark.Tracks[0].Title, "Kotoha", "", TimeSpan.FromSeconds(221));
+            Check(MetadataMatching.Evaluate(kotoha, "可愛くてごめん (Cover)", "Kotoha", kotoha.Duration).Accepted);
+            Check(!MetadataMatching.Evaluate(kotoha, "可愛くてごめん", "HoneyWorks", kotoha.Duration).Accepted);
+            var hug = kotoha with { Title = ArtistBenchmark.Tracks[1].Title, Duration = TimeSpan.FromSeconds(158) };
+            Check(MetadataMatching.Evaluate(hug, "だきしめるまで。 (Cover)", "Kotoha", hug.Duration).Accepted);
+            Check(!MetadataMatching.Evaluate(hug, "だきしめるまで。 (Cover)", "Kotoha", TimeSpan.FromSeconds(144)).Accepted);
+            var another = nemo with { Title = ArtistBenchmark.Tracks[5].Title };
+            Check(!MetadataMatching.Evaluate(another, "カタチのないもの", "涼海ネモ", another.Duration).Accepted);
+        });
+        test("temporary provider errors retry once within request budget", () => RunAsync(async () =>
+        {
+            var handler = new TransientHandler(); using var http = new HttpClient(handler);
+            using var result = await new LyricsHttpClient(http).GetAsync("https://fixture.invalid", CancellationToken.None);
+            Check(handler.Count == 2 && result.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array);
+        }));
         test("source fallback skips wrong and untimed candidates", () => RunAsync(async () =>
         {
             var wrong = new LyricsCandidate("first", "1", "アイドル", "YOASOBI", TimeSpan.FromSeconds(90), "[00:01]wrong");
@@ -231,6 +250,12 @@ internal static class LyricsTests
         public List<string> Queries { get; } = new();
         public Task<IReadOnlyList<LyricsCandidate>> SearchAsync(string query, CancellationToken token) { Queries.Add(query); return Task.FromResult(candidates); }
         public Task<LyricsCandidate> FetchAsync(LyricsCandidate c, CancellationToken token) { Fetched.Add(c.Id); return Task.FromResult(c); }
+    }
+    private sealed class TransientHandler : HttpMessageHandler
+    {
+        public int Count;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) =>
+            Task.FromResult(new HttpResponseMessage(++Count == 1 ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK) { Content = new StringContent("[]") });
     }
     private sealed class FixedHandler(string text, HttpStatusCode status) : HttpMessageHandler
     {

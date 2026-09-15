@@ -15,6 +15,11 @@ public static class MetadataMatching
     public static string CleanTitle(string value)
     {
         string text = value.Normalize(NormalizationForm.FormKC).Trim();
+        // Public music video titles often include composer and performer credits.
+        text = Replace(text, @"\s*/\s*[^/]+?\s*(?:\([^()]+\s+Ver\.?\)|[【\[]\s*Covered by\s+[^】\]]+[】\]])\s*$", "");
+        text = Replace(text, @"\s+-\s+.+?\s*/\s*covered by\s+.+$", "");
+        var artistQuoted = Regex.Match(text, @"^[^『「]+[『「]\s*(?<song>[^』」]+?)\s*[』」]\s*(?:-\s*Official Music Video\s*-)?$", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
+        if (artistQuoted.Success) text = artistQuoted.Groups["song"].Value;
         var quoted = Regex.Match(text, @"^[【『「《\[].*?[】』」》\]].*?[「『]([^」』]+)[」』]", RegexOptions.None, TimeSpan.FromMilliseconds(100));
         if (quoted.Success) text = quoted.Groups[1].Value;
         text = Replace(text, @"\s*[\(\[【](?:[^\)\]】]*?(?:" + Noise + @")[^\)\]】]*)[\)\]】]", "");
@@ -25,6 +30,7 @@ public static class MetadataMatching
     {
         string text = Replace(value.Normalize(NormalizationForm.FormKC), @"\s*\(CV[.:：]?[^)]*\)", "");
         text = Replace(text, @"\s+(?:feat\.?|ft\.?|featuring|with|vs\.?)\s+.*$", "");
+        text = Replace(text, @"\s*/\s*[^/]*\bChannel\b.*$|\s+-\s+Topic$", "");
         return text.Trim().TrimEnd(',', ';', '&').Trim();
     }
     public static string PrimaryArtist(string value) => Regex.Split(CleanArtist(value), @"\s*[,;&、]\s*|\s+x\s+", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100))[0];
@@ -43,7 +49,11 @@ public static class MetadataMatching
         var versions = new List<string>();
         foreach (string variant in new[] { "live", "remix", "acoustic", "instrumental", "cover", "tv", "remaster" })
             if (Regex.IsMatch(text, @"(?:^|[\s(\[\-])" + variant + @"(?:ed)?(?:$|[\s)\].\-])", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100))) versions.Add(variant);
-        return string.Join("+", versions);
+        if (Regex.IsMatch(text, @"\bcovered by\b|歌ってみた|\([^()]+\s+Ver\.?\)", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100))
+            && !Regex.IsMatch(text, @"\b(?:another|acoustic|live|tv|anime)\s+ver", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100)))
+            if (!versions.Contains("cover")) versions.Add("cover");
+        if (Regex.IsMatch(text, @"\banother\s+ver", RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100))) versions.Add("another");
+        return string.Join("+", versions.OrderBy(x => x));
     }
     public static double Similarity(string a, string b)
     {

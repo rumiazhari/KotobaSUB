@@ -22,6 +22,7 @@ public sealed record OverlaySettings
     public bool Translation { get; init; }
     public bool PreviousLine { get; init; }
     public bool NextLine { get; init; }
+    public bool InternetLyricsOnly { get; init; }
     public double GlobalOffsetSeconds { get; init; }
     public double TokenSpacing { get; init; } = 8;
     public double LineSpacing { get; init; } = 0;

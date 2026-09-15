@@ -34,6 +34,16 @@ internal static class RoutingTests
             var after = router.Evaluate(false, false, new(null), AudioSourceHealth.Stopped, Tick(1.1));
             Check(after.ShouldRunAsr && after.Frame.Current is null);
         });
+        test("internet lyrics only disables fallback ASR while keeping structured lyrics", () =>
+        {
+            var router = new SubtitleSourceRouter(TimeSpan.Zero);
+            var none = router.Evaluate(false, false, new(null), AudioSourceHealth.Stopped, Tick(1), asrEnabled: false);
+            Check(none.Source == SubtitleSourceKind.None && !none.ShouldRunAsr && none.NextEvaluation is null);
+            router.AcceptTranscript(new("無視", TimeSpan.Zero, TimeSpan.FromSeconds(1), .9f, .1f), Tick(1.1), asrEnabled: false);
+            Check(router.Evaluate(false, false, new(null), AudioSourceHealth.Stopped, Tick(1.2), asrEnabled: false).Frame.Current is null);
+            var structured = router.Evaluate(false, true, new(Line("歌詞")), AudioSourceHealth.Stopped, Tick(2), asrEnabled: false);
+            Check(structured.Source == SubtitleSourceKind.StructuredLyrics && structured.Frame.Current?.OriginalText == "歌詞");
+        });
         test("routing clears ASR on faults and suspension resets hysteresis", () =>
         {
             var router = new SubtitleSourceRouter();
