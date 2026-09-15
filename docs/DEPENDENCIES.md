@@ -5,10 +5,14 @@ C# and stable .NET 10, WPF and Windows Forms NotifyIcon from the Windows desktop
 
 KotobaSUB uses GPL-3.0 to allow planned adaptation of Flying Lyrics. Copy its complete license into LICENSE. MetadataMatching.cs now adapts upstream cleanup/matching concepts with an attributed source header and a path-level entry in THIRD_PARTY_NOTICES. Lyrics content rights are separate from the extension source license.
 
-## Evaluated for later milestones; not yet package references
-- [NAudio](https://github.com/naudio/NAudio): MIT, Windows loopback support. Current upstream has a v3 package split and changed WASAPI API. Inspect a stable release and use the focused WASAPI package if it satisfies resampling needs; do not assume v2 sample code matches v3.
-- [Whisper.net](https://github.com/sandrohanea/whisper.net): MIT managed/native integration, CPU plus optional CUDA runtimes. Pin matching managed/native versions. Validate GPU driver compatibility and real native inference before distributing. Download a multilingual Whisper model separately; record source, SHA256, model license and size. English-only models are unsuitable.
-- SMTC is now implemented through the Windows SDK projection; desktop metadata availability still varies by producer.
+## Selected local audio and transcription dependencies
+NAudio.Wasapi 3.1.0 is pinned for Windows shared-mode loopback capture; its license is MIT. The implementation uses the v3 `WasapiRecorderBuilder`, a bounded 32-block queue, explicit PCM/float conversion, mono downmix and stateful 16 kHz resampling. Whisper.net and Whisper.net.Runtime 1.9.1 are pinned together under MIT. The Windows project excludes the package's general build targets and copies only the four win-x64 CPU DLLs, so arm64, x86, Metal and GPU runtimes are not distributed by the current build. Transitive Microsoft.Extensions.AI.Abstractions 10.2.0 and System.Numerics.Tensors 9.0.0 are MIT.
+
+The local model is the multilingual whisper.cpp `ggml-base.bin`, downloaded from `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin`. Verified size: 147,951,465 bytes. SHA256: 60ED5BC3DD14EEA856493D334349B405782DDCAF0028D4B5DF4088345FBA2EFE. The model is ignored by Git and is not copied into application output. `tools/setup-model.ps1` verifies this checksum before atomic replacement. The original OpenAI Whisper model/code license is MIT; retained text is in `docs/licenses/OpenAI-Whisper-MIT.txt`.
+
+The deterministic real-inference fixture is Wikimedia Commons `Wikibooksqsjapanese1-snd005.ogg`, transcoded to MP3 by Wikimedia and stored only in ignored test data. `tools/setup-audio-fixture.ps1` downloads the exact transcode and verifies it before replacement. It says こんにちは, is credited to uploader Nesnad, and is CC BY-SA 3.0. Local MP3 SHA256: 13DC9E5E8F7760410A67BFDB08A3F44B2DB379D6C94FD82D37BE282A755F886B; size 19,666 bytes. The license text is retained in `docs/licenses/CC-BY-SA-3.0.txt`.
+
+SMTC is implemented through the Windows SDK projection; desktop metadata availability still varies by producer.
 
 ## Primary platform references
 [WPF transparency](https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.allowstransparency) and [extended styles](https://learn.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles) inform HWND implementation. Browser CSS cannot validate these behaviors. Keep library/data versions and notices with each later integration, including transitive native components.

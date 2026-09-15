@@ -28,3 +28,12 @@ KotobaSUB's derived SQLite index restructures English senses, forms and restrict
 Microsoft.Data.Sqlite / Core 10.0.12: © Microsoft Corporation, MIT; see docs/licenses/Microsoft.Data.Sqlite-MIT.txt and https://github.com/dotnet/efcore.
 
 SQLitePCLRaw bundle/core/provider/lib.e_sqlite3 2.1.12: copyright 2014-2024 SourceGear, LLC, Apache-2.0; see docs/licenses/SQLitePCLRaw-Apache-2.0.txt and https://github.com/ericsink/SQLitePCL.raw. Retain complete applicable notices in binary distributions.
+
+## Local audio and speech recognition
+NAudio.Wasapi 3.1.0, copyright Mark Heath and contributors, MIT. Source: https://github.com/naudio/NAudio. License: `docs/licenses/NAudio-MIT.txt`.
+
+Whisper.net and Whisper.net.Runtime 1.9.1, copyright Sandro Hanea and contributors, MIT. Source: https://github.com/sandrohanea/whisper.net. License: `docs/licenses/Whisper.net-MIT.txt`. Current builds distribute only the win-x64 CPU native runtime files selected from Whisper.net.Runtime.
+
+The multilingual Whisper base model is derived from OpenAI Whisper and converted for whisper.cpp. OpenAI Whisper is copyright OpenAI, MIT; see `docs/licenses/OpenAI-Whisper-MIT.txt`, https://github.com/openai/whisper and https://github.com/ggml-org/whisper.cpp. The model is downloaded explicitly for local use and is not included in this source repository or application output.
+
+The Japanese test recording `Wikibooksqsjapanese1-snd005.ogg` is credited to Wikimedia Commons uploader Nesnad under CC BY-SA 3.0. Source: https://commons.wikimedia.org/wiki/File:Wikibooksqsjapanese1-snd005.ogg. License: `docs/licenses/CC-BY-SA-3.0.txt`. The local transcoded fixture is ignored test data and is not distributed with source or application builds.

@@ -12,6 +12,7 @@ Directory.CreateDirectory(directory);
 try
 {
     LyricsTests.Run(Test, directory);
+    AudioTests.Run(Test);
     JapaneseTests.Run(Test, directory, args.SkipWhile(a => a != "--dictionary").Skip(1).FirstOrDefault());
     Test("safe settings limits", () => { var s = new OverlaySettings { Width = -1, FontSize = double.NaN, Top = double.PositiveInfinity }.Validate(); Equal(320d, s.Width); Equal(36d, s.FontSize); Equal(650d, s.Top); });
     Test("settings roundtrip and overwrite", () => { var store = new SettingsStore(Path.Combine(directory, "settings.json"), _ => { }); var s = new OverlaySettings { Left = -1000, Furigana = false, FontSize = 42 }; store.Save(s); Equal(s, store.Load()); store.Save(s with { Gloss = false }); Equal(false, store.Load().Gloss); });
