@@ -66,3 +66,7 @@ The native smoke now verifies that Study mode enables token interaction only aft
 ## Current-user startup checkpoint — 2026-09-15
 
 `--startup-smoke` created a unique temporary HKCU Run value, read back `Enabled=True` and the exact command `"C:\Program Files\KotobaSUB\KotobaSUB.exe"`, removed it, and read back `Removed=True`. It does not create, alter or delete the real `KotobaSUB` Run value. The tray toggle itself is restricted to the published `KotobaSUB.exe`, so development `dotnet` launches cannot register a broken command. Physical logon behavior remains package/manual acceptance work.
+
+## M6 monitor-aware placement checkpoint — 2026-09-15
+
+Implemented persisted monitor device identity and normalized working-area placement. Missing saved monitors recover to a live primary display; existing coordinate-only settings continue to load and receive monitor metadata on their next save. The native smoke recorded active monitor placement and recovery from an unavailable monitor, and the regenerated Chrome preview was non-uniform with 55 sampled colors. Mixed-DPI, physical monitor removal and sleep/wake remain manual acceptance work.

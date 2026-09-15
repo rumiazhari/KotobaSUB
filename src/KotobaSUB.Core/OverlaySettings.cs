@@ -17,6 +17,9 @@ public sealed record OverlaySettings
     public bool NextLine { get; init; }
     public double GlobalOffsetSeconds { get; init; }
     public double TokenSpacing { get; init; } = 8;
+    public string? MonitorDeviceName { get; init; }
+    public double MonitorRelativeLeft { get; init; }
+    public double MonitorRelativeTop { get; init; }
 
     public OverlaySettings Validate() => this with
     {
@@ -24,7 +27,9 @@ public sealed record OverlaySettings
         Version = 1, Left = Finite(Left, 200), Top = Finite(Top, 650),
         Width = Clamp(Width, 320, 3840, 1000), Height = Clamp(Height, 140, 1200, 240),
         FontSize = Clamp(FontSize, 18, 72, 36), TokenSpacing = Clamp(TokenSpacing, 0, 32, 8),
-        FontFamily = string.IsNullOrWhiteSpace(FontFamily) ? "Yu Gothic UI" : FontFamily
+        FontFamily = string.IsNullOrWhiteSpace(FontFamily) ? "Yu Gothic UI" : FontFamily,
+        MonitorDeviceName = string.IsNullOrWhiteSpace(MonitorDeviceName) ? null : MonitorDeviceName.Trim(),
+        MonitorRelativeLeft = Clamp(MonitorRelativeLeft, 0, 1, 0), MonitorRelativeTop = Clamp(MonitorRelativeTop, 0, 1, 0)
     };
     private static double Finite(double n, double fallback) => double.IsFinite(n) ? n : fallback;
     private static double Clamp(double n, double min, double max, double fallback) => Math.Clamp(Finite(n, fallback), min, max);

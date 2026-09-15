@@ -108,3 +108,7 @@ Implemented the passive Freeze/Study control: tray action and Ctrl+Alt+F12 retai
 ## M6 current-user startup checkpoint — 2026-09-15
 
 Implemented the opt-in tray startup toggle using the current-user Run registry key and exact executable quoting. The control only registers a published `KotobaSUB.exe`, needs no elevation, and removes the value when disabled. An isolated smoke test creates, validates and removes a unique temporary Run value. Next M6 work is monitor-aware placement, package artifacts, profiling and physical acceptance.
+
+## M6 monitor-aware placement checkpoint — 2026-09-15
+
+Implemented monitor-aware overlay persistence: save active device identity and normalized working-area coordinates, restore to that display when available, and recover to the primary display when it is missing. Existing settings migrate on the next save. Native smoke and rendered browser preview pass. Next M6 work is package artifacts, resource profiling and physical acceptance.

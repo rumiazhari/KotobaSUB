@@ -16,6 +16,7 @@ try
     RoutingTests.Run(Test);
     JapaneseTests.Run(Test, directory, args.SkipWhile(a => a != "--dictionary").Skip(1).FirstOrDefault());
     Test("safe settings limits", () => { var s = new OverlaySettings { Width = -1, FontSize = double.NaN, Top = double.PositiveInfinity }.Validate(); Equal(320d, s.Width); Equal(36d, s.FontSize); Equal(650d, s.Top); });
+    Test("settings validate monitor placement", () => { var s = new OverlaySettings { MonitorDeviceName = "  \\.\\DISPLAY2  ", MonitorRelativeLeft = 3, MonitorRelativeTop = double.NaN }.Validate(); Equal("\\.\\DISPLAY2", s.MonitorDeviceName); Equal(1d, s.MonitorRelativeLeft); Equal(0d, s.MonitorRelativeTop); });
     Test("settings roundtrip and overwrite", () => { var store = new SettingsStore(Path.Combine(directory, "settings.json"), _ => { }); var s = new OverlaySettings { Left = -1000, Furigana = false, FontSize = 42 }; store.Save(s); Equal(s, store.Load()); store.Save(s with { Gloss = false }); Equal(false, store.Load().Gloss); });
     Test("corrupt settings report recovery", () => { string path = Path.Combine(directory, "bad.json"); File.WriteAllText(path, "{bad"); var reports = new List<string>(); Equal(new OverlaySettings(), new SettingsStore(path, reports.Add).Load()); Equal(1, reports.Count); });
     Test("future schema is rejected", () => { string path = Path.Combine(directory, "future.json"); File.WriteAllText(path, "{\"Version\":99}"); var reports = new List<string>(); new SettingsStore(path, reports.Add).Load(); Equal(1, reports.Count); });

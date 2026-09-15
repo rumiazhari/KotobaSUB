@@ -1,6 +1,8 @@
 using System.Windows.Controls.Primitives;
+using DrawingRectangle = System.Drawing.Rectangle;
 using System.Windows.Input;
 using KotobaSUB.Core.Japanese;
+using Forms = System.Windows.Forms;
 
 namespace KotobaSUB.Windows;
 
@@ -39,13 +41,31 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     internal void Apply(OverlaySettings settings)
     {
         Preferences = settings.Validate();
-        Width = Math.Min(Preferences.Width, SystemParameters.VirtualScreenWidth);
-        Height = Math.Min(Preferences.Height, SystemParameters.VirtualScreenHeight);
-        Left = Math.Clamp(Preferences.Left, SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth - Width);
-        Top = Math.Clamp(Preferences.Top, SystemParameters.VirtualScreenTop, SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight - Height);
+        Forms.Screen screen = TargetScreen(Preferences.MonitorDeviceName);
+        DrawingRectangle workArea = screen.WorkingArea;
+        Width = Math.Min(Preferences.Width, workArea.Width);
+        Height = Math.Min(Preferences.Height, workArea.Height);
+        bool matchingMonitor = string.Equals(Preferences.MonitorDeviceName, screen.DeviceName, StringComparison.OrdinalIgnoreCase);
+        double requestedLeft = matchingMonitor ? workArea.Left + Preferences.MonitorRelativeLeft * Math.Max(0, workArea.Width - Width) : Preferences.Left;
+        double requestedTop = matchingMonitor ? workArea.Top + Preferences.MonitorRelativeTop * Math.Max(0, workArea.Height - Height) : Preferences.Top;
+        Left = Math.Clamp(requestedLeft, workArea.Left, workArea.Right - Width);
+        Top = Math.Clamp(requestedTop, workArea.Top, workArea.Bottom - Height);
         RenderFrame(current);
     }
-    internal OverlaySettings Snapshot() => Preferences with { Left = Left, Top = Top, Width = Width, Height = Height };
+    internal OverlaySettings Snapshot()
+    {
+        Forms.Screen screen = Forms.Screen.FromRectangle(new DrawingRectangle((int)Math.Round(Left), (int)Math.Round(Top), (int)Math.Ceiling(Width), (int)Math.Ceiling(Height)));
+        DrawingRectangle workArea = screen.WorkingArea;
+        return Preferences with
+        {
+            Left = Left, Top = Top, Width = Width, Height = Height, MonitorDeviceName = screen.DeviceName,
+            MonitorRelativeLeft = Ratio(Left - workArea.Left, workArea.Width - Width),
+            MonitorRelativeTop = Ratio(Top - workArea.Top, workArea.Height - Height)
+        };
+    }
+    private static double Ratio(double value, double span) => span <= 0 ? 0 : Math.Clamp(value / span, 0, 1);
+    private static Forms.Screen TargetScreen(string? deviceName) => Forms.Screen.AllScreens.FirstOrDefault(s => string.Equals(s.DeviceName, deviceName, StringComparison.OrdinalIgnoreCase))
+        ?? Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens[0];
     internal void SetLocked(bool value)
     {
         Native.SetLocked(value); Locked = value;

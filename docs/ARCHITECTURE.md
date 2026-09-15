@@ -46,3 +46,7 @@ Freeze is a secondary tray/hotkey state. `PlaybackController` retains the last r
 ## Current-user startup
 
 The tray's **Start with Windows** control uses `StartupRegistration` to create or remove only `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\KotobaSUB`. The value is the exact quoted published executable path and is unavailable to development `dotnet` launches, preventing an unusable `dotnet` Run command. No machine-wide key or elevation is used.
+
+## Monitor-aware placement
+
+Overlay settings now retain the active display device name plus normalized working-area coordinates whenever geometry is saved. On launch, `OverlayWindow` restores the normalized location when that device remains available. If it has been disconnected, the window resolves to the primary display and clamps the existing coordinates to that display's working area. Existing settings without monitor fields remain valid and are upgraded on the next geometry save.

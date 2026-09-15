@@ -51,6 +51,10 @@ internal static class NativeSmoke
                 overlay.Width = 800; overlay.Height = 300; overlay.UpdateLayout();
                 Capture(overlay, Path.Combine(directory, "resized.png"));
                 Check(overlay.Snapshot().Width == 800, "interactive geometry snapshot updates");
+                OverlaySettings monitorSnapshot = overlay.Snapshot();
+                Check(!string.IsNullOrWhiteSpace(monitorSnapshot.MonitorDeviceName) && monitorSnapshot.MonitorRelativeLeft is >= 0 and <= 1 && monitorSnapshot.MonitorRelativeTop is >= 0 and <= 1, "snapshot records active monitor placement");
+                overlay.Apply(monitorSnapshot with { MonitorDeviceName = "missing-monitor" });
+                Check(!string.IsNullOrWhiteSpace(overlay.Snapshot().MonitorDeviceName), "missing monitor recovers to an active display");
                 overlay.Render(null); overlay.UpdateLayout();
                 Check(HasTransparentCorner(overlay), "empty provider renders no background");
                 overlay.Apply(new OverlaySettings { Left = 50, Top = 50, Width = 1000, Height = 320, PreviousLine = true, NextLine = true });
