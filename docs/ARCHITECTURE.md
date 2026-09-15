@@ -50,3 +50,11 @@ The tray's **Start with Windows** control uses `StartupRegistration` to create o
 ## Monitor-aware placement
 
 Overlay settings now retain the active display device name plus normalized working-area coordinates whenever geometry is saved. On launch, `OverlayWindow` restores the normalized location when that device remains available. If it has been disconnected, the window resolves to the primary display and clamps the existing coordinates to that display's working area. Existing settings without monitor fields remain valid and are upgraded on the next geometry save.
+
+## Lyric verification and learned alignment
+
+The existing lyrics path remains provider-first: `LyricsResolver` applies metadata hard gates, `LyricsSession` owns the selected `LyricTimeline`, and `PlaybackController` composes structured lyrics with local ASR fallback. The verification extension retains a bounded shortlist of accepted LRCLIB/NetEase candidates, then evaluates actual ASR fragments as evidence without replacing provider text.
+
+`LyricVerifier` is a Core component. It normalizes Japanese comparison copies, compares ASR fragments against nearby candidate lines, emits compact evidence anchors and maintains explicit confidence states. A separate `LyricAlignmentModel` projects provider timestamps through a robust automatic offset/drift estimate before the existing manual `SongOffsets` correction. Provider timestamps are never mutated.
+
+Verification callbacks carry track identity, candidate key and generation. Playback cancellation, song changes, pause/freeze and retries invalidate stale work before persistence or rendering. `LyricVerificationStore` persists only bounded versioned assessments, compact anchors and learned alignment under local storage; raw audio and raw transcript windows are never written. See `LYRIC_VERIFICATION.md` for thresholds, state transitions, persistence and staged integration.

@@ -120,3 +120,7 @@ Exposed persisted vertical line spacing (0–32 px) in the native settings windo
 ## M6 text contrast checkpoint — 2026-09-15
 
 The glyph renderer now uses a persisted configurable black outline from 0 to 8 px, defaulting to 3 px, with geometry padding that scales with the outline so text cannot clip. The native settings window applies the outline live, and zero width preserves outline-free text when desired. Native smoke changed the value to 4.5 px; the capture contained 4,031 near-white glyph pixels and 6,010 near-black outline pixels. The headless Chrome gallery rendered successfully with 90 sampled colors. The overlay remains transparent and text-only; no subtitle background panel was added.
+
+## Lyric verification baseline — 2026-09-15
+
+The current baseline is clean at `be838a1`: native, media, local ASR, package and rendered-preview checks pass, while automatic lyric/audio verification and learned alignment are not yet implemented. The existing resolver returns one metadata-accepted candidate, rejections are session-local, and `SongOffsets` contains only manual correction. The staged implementation and evidence requirements are recorded in `docs/LYRIC_VERIFICATION.md`; no capability claim is made until deterministic tests and controlled audio validation pass.
