@@ -8,10 +8,15 @@ Push-Location $repoRoot
 try {
     & $sdk build KotobaSUB.slnx -c Release
     if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
-    & $sdk run --project tests/KotobaSUB.Tests -c Release --no-build
+    $dictionaryArgs = if (Test-Path .data/jmdict.sqlite) { @("--", "--dictionary", ".data/jmdict.sqlite") } else { @() }
+    & $sdk run --project tests/KotobaSUB.Tests -c Release --no-build @dictionaryArgs
     if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
     if ($Native) {
         & $sdk run --project src/KotobaSUB.Windows -c Release --no-build -- --smoke --output artifacts/native-smoke
         if ($LASTEXITCODE -ne 0) { throw 'Native smoke failed' }
+        if (Test-Path .data/jmdict.sqlite) {
+            & $sdk run --project src/KotobaSUB.Windows -c Release --no-build -- --learning-smoke
+            if ($LASTEXITCODE -ne 0) { throw 'Learning smoke failed' }
+        }
     }
 } finally { Pop-Location }

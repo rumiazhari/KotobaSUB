@@ -16,6 +16,7 @@ internal sealed class SettingsWindow : Window
             panel.Children.Add(box);
         }
         Toggle("Furigana", current.Furigana, (s, v) => s with { Furigana = v });
+        Toggle("Romaji (optional)", current.Romaji, (s, v) => s with { Romaji = v });
         Toggle("Word gloss", current.Gloss, (s, v) => s with { Gloss = v });
         Toggle("Supplied line translation", current.Translation, (s, v) => s with { Translation = v });
         Toggle("Previous line", current.PreviousLine, (s, v) => s with { PreviousLine = v });
@@ -30,6 +31,7 @@ internal sealed class SettingsWindow : Window
         var offset = new Slider { Minimum = -30, Maximum = 30, Value = current.GlobalOffsetSeconds, TickFrequency = .5, IsSnapToTickEnabled = true };
         offset.ValueChanged += (_, _) => { current = current with { GlobalOffsetSeconds = offset.Value }; offsetText.Text = $"Global sync: {offset.Value:+0.0;-0.0;0.0} s (positive = earlier)"; changed(current); };
         panel.Children.Add(offset);
-        panel.Children.Add(new TextBlock { Text = "Ctrl+Alt+F9: show/hide\nCtrl+Alt+F10: unlock/lock position\nSample preview is available from the tray.\nLocal Japanese analysis and ASR are not installed yet.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 20, 0, 0), Foreground = Brushes.DimGray });
+        panel.Children.Add(new TextBlock { Text = "Ctrl+Alt+F9: show/hide\nCtrl+Alt+F10: unlock/lock position\nSample preview is available from the tray.\nReadings: IPADIC. Meanings: JMdict (EDRDG). ASR is not installed yet.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 20, 0, 0), Foreground = Brushes.DimGray });
+        panel.Children.Add(new TextBlock { Text = "JMdict © EDRDG / Jim Breen — CC BY-SA 4.0", FontSize = 11, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap });
     }
 }

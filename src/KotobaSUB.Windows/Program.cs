@@ -8,6 +8,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Contains("--learning-smoke")) return LearningSmoke.Run();
         if (args.Contains("--smoke")) return NativeSmoke.Run(args);
         if (args.Contains("--media-smoke")) return MediaSmoke.Run(args);
         using var instance = new System.Threading.Mutex(true, args.Contains("--app-smoke") ? "Local\\KotobaSUB.Smoke" : "Local\\KotobaSUB", out bool first);

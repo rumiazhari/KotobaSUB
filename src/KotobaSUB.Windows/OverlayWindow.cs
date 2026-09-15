@@ -1,6 +1,6 @@
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Media.Effects;
+using KotobaSUB.Core.Japanese;
 
 namespace KotobaSUB.Windows;
 
@@ -14,6 +14,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     private SubtitleFrame current = new(null);
     internal NativeOverlay Native { get; private set; } = null!;
     internal OverlaySettings Preferences { get; private set; }
+    internal SubtitleFrame DisplayedFrame => current;
     internal bool Locked { get; private set; } = true;
     public event Action? GeometryChanged;
 
@@ -60,7 +61,8 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         {
             var stack = new StackPanel { Margin = new Thickness(Preferences.TokenSpacing / 2, 4, Preferences.TokenSpacing / 2, 4) };
             if (Preferences.Furigana)
-                stack.Children.Add(Label(token.Reading ?? "", Preferences.FontSize * .45, .95, Preferences.FontSize * .7));
+                stack.Children.Add(Label(JapaneseText.HasKanji(token.Surface) ? token.Reading ?? "" : "", Preferences.FontSize * .45, .95, Preferences.FontSize * .7));
+            if (Preferences.Romaji) stack.Children.Add(Label(Romaji(token), Preferences.FontSize * .42, .9, Preferences.FontSize * .65));
             stack.Children.Add(Label(token.Surface, Preferences.FontSize, 1));
             if (Preferences.Gloss) stack.Children.Add(Label(token.Glosses.FirstOrDefault() ?? "", Preferences.FontSize * .43, .85, Preferences.FontSize * .65));
             words.Children.Add(stack);
@@ -70,6 +72,9 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Label(line.Translation, Preferences.FontSize * .55, .9));
         if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Label(next.OriginalText, Preferences.FontSize * .6, .45));
     }
+    private static string Romaji(LearningToken token) => token.PartOfSpeech == "助詞" && token.Surface is "は" or "へ" or "を"
+        ? token.Surface switch { "は" => "wa", "へ" => "e", _ => "o" }
+        : token.Reading is { } reading ? KanaRomanizer.Convert(reading) : "";
     private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily)
     {
         Opacity = opacity, MinHeight = minHeight

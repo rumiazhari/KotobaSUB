@@ -81,7 +81,7 @@ internal static class NativeSmoke
         var bitmap = new RenderTargetBitmap((int)element.ActualWidth, (int)element.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(element); return bitmap;
     }
-    private static void Capture(FrameworkElement element, string path)
+    internal static void Capture(FrameworkElement element, string path)
     {
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(Bitmap(element)));
         using var stream = File.Create(path); encoder.Save(stream);

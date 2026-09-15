@@ -10,6 +10,7 @@ public sealed record OverlaySettings
     public double FontSize { get; init; } = 36;
     public string FontFamily { get; init; } = "Yu Gothic UI";
     public bool Furigana { get; init; } = true;
+    public bool Romaji { get; init; }
     public bool Gloss { get; init; } = true;
     public bool Translation { get; init; }
     public bool PreviousLine { get; init; }

@@ -4,7 +4,7 @@ A lightweight real-time Japanese learning subtitle overlay for Windows audio.
 
 KotobaSUB displays text above other Windows applications, with no browser window, account or subtitle background panel. The intended learning layers are furigana, Japanese text and concise word meanings, with local speech recognition and an offline dictionary.
 
-**Current development state:** the native overlay and structured-lyrics pipeline are implemented. Windows SMTC detects media metadata; LRCLIB and NetEase provide synchronized lyrics; playback events and timed boundaries drive the overlay. Japanese tokenization/dictionary annotation and audio transcription are not connected yet. This is not the MVP.
+**Current development state:** the native overlay and structured-lyrics pipeline are implemented. Windows SMTC detects media metadata; LRCLIB and NetEase provide synchronized lyrics; playback events and timed boundaries drive the overlay. Offline IPADIC tokenization, JMdict meanings and optional romaji are connected. Audio transcription is not implemented yet. This is not the MVP.
 
 ## Build and run
 
@@ -39,3 +39,10 @@ dotnet run --project src/KotobaSUB.Windows -c Release -- --app-smoke
 The first command builds, runs core regressions and checks the real native window/settings with PNG captures. The session fixture registers a generated, muted WAV with Windows and checks pause/resume/seek events, then disposes its session. The network smoke uses a fixed YOASOBI/アイドル test query; it does not send the currently playing track to lyric services. The app smoke uses isolated storage and sample data, disables media discovery, and exits automatically. Artifacts are written under `artifacts/` and are not committed.
 
 See [validation evidence and limits](docs/VALIDATION.md), [plan](docs/PLAN.md), [architecture](docs/ARCHITECTURE.md), [dependencies](docs/DEPENDENCIES.md), [Flying Lyrics review](docs/FLYING_LYRICS_ANALYSIS.md) and [notices](THIRD_PARTY_NOTICES.md). Licensed GPL-3.0.
+
+## Offline dictionary setup
+Run `./tools/setup-data.ps1` before launching to download official English JMdict, build its SQLite index and copy it into application output. Repeat to update, then restart KotobaSUB. Use `./tools/setup-data.ps1 -UseExisting` to rebuild from the downloaded archive without network access. Import validates a temporary database before replacing the prior index. Generated data stays in ignored `.data/`.
+
+IPADIC deploys through the pinned NuGet package. Without JMdict, readings work but meanings are unavailable. Analysis runs locally on a worker; original text appears while annotation completes. Romaji defaults off. A selected short gloss is a learning aid, not contextual translation. Annotation cache is bounded to 512 memory entries and 256 local files.
+
+JMdict is © EDRDG / Jim Breen, CC BY-SA 4.0. The derived index retains that data license. See THIRD_PARTY_NOTICES.md and docs/licenses; local output copies notices into Data/. Full-data tests run automatically in tools/verify.ps1 when the index exists.

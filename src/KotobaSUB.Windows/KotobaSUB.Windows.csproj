@@ -1,4 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ImplicitUsings>disable</ImplicitUsings><PlatformTarget>x64</PlatformTarget><AssemblyName>KotobaSUB</AssemblyName></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../KotobaSUB.Core/KotobaSUB.Core.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../KotobaSUB.Core/KotobaSUB.Core.csproj" /><ProjectReference Include="..\KotobaSUB.Japanese\KotobaSUB.Japanese.csproj" /></ItemGroup>
+  <ItemGroup>
+    <Content Include="../../.data/jmdict.sqlite" Condition="Exists('../../.data/jmdict.sqlite')" Link="Data/jmdict.sqlite" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../docs/licenses/*" Link="Data/licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../../THIRD_PARTY_NOTICES.md" Link="Data/THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

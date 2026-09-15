@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using KotobaSUB.Core.Lyrics;
+using KotobaSUB.Windows.Learning;
 
 namespace KotobaSUB.Windows.Media;
 
@@ -11,6 +12,7 @@ internal sealed class PlaybackController : IDisposable
     private readonly OverlayWindow overlay;
     private readonly Action<string> status;
     private readonly Action<string> log;
+    private readonly LearningRenderer learning;
     private readonly HttpClient http = new();
     private readonly SmtcMetadataProvider metadata;
     private readonly LyricsSession session;
@@ -25,6 +27,7 @@ internal sealed class PlaybackController : IDisposable
     public PlaybackController(OverlayWindow overlay, string directory, Action<string> status, Action<string> log)
     {
         this.overlay = overlay; this.status = status; this.log = log;
+        learning = new LearningRenderer(overlay, Path.Combine(directory, "annotations"), log);
         var client = new LyricsHttpClient(http);
         session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], new LyricsCache(Path.Combine(directory, "lyrics-v1"), log), log), log);
         offsets = new(Path.Combine(directory, "song-offsets.json"), log);
@@ -67,18 +70,18 @@ internal sealed class PlaybackController : IDisposable
     {
         if (disposed) return;
         timer.Stop();
-        if (preview) { overlay.Render(PreviewSubtitle.Line); status("Sample preview"); return; }
-        if (paused) { overlay.Render(null); status("Paused"); return; }
+        if (preview) { learning.RenderSample(PreviewSubtitle.Line); status("Sample preview"); return; }
+        if (paused) { learning.RenderSample(null); status("Paused"); return; }
         double offset = overlay.Preferences.GlobalOffsetSeconds + (session.Snapshot is { } snapshot ? offsets.Get(snapshot.Track.Identity) : 0);
         status(session.Status);
         var frame = session.Frame(offset);
-        if (frame != rendered) { overlay.RenderFrame(frame); rendered = frame; }
+        if (frame != rendered) { learning.RenderFrame(frame); rendered = frame; }
         if (session.NextDelay(offset) is { } delay) { timer.Interval = delay; timer.Start(); }
     }
     public void SettingsChanged() { rendered = null; Refresh(); }
     public void Dispose()
     {
         if (disposed) return;
-        disposed = true; timer.Stop(); lifetime.Cancel(); metadata.Dispose(); session.Dispose(); http.Dispose(); lifetime.Dispose();
+        disposed = true; learning.Dispose(); timer.Stop(); lifetime.Cancel(); metadata.Dispose(); session.Dispose(); http.Dispose(); lifetime.Dispose();
     }
 }
