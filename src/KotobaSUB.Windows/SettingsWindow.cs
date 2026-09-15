@@ -46,6 +46,11 @@ internal sealed class SettingsWindow : Window
         var spacing = new Slider { Minimum = 0, Maximum = 32, Value = current.TokenSpacing, TickFrequency = 2, IsSnapToTickEnabled = true };
         spacing.ValueChanged += (_, _) => { current = current with { TokenSpacing = spacing.Value }; spacingText.Text = $"Token spacing: {spacing.Value:0}"; changed(current); };
         panel.Children.Add(spacing);
+        var lineSpacingText = new TextBlock { Text = $"Line spacing: {current.LineSpacing:0}", Margin = new Thickness(0, 12, 0, 4) };
+        panel.Children.Add(lineSpacingText);
+        var lineSpacing = new Slider { Minimum = 0, Maximum = 32, Value = current.LineSpacing, TickFrequency = 2, IsSnapToTickEnabled = true };
+        lineSpacing.ValueChanged += (_, _) => { current = current with { LineSpacing = lineSpacing.Value }; lineSpacingText.Text = $"Line spacing: {lineSpacing.Value:0}"; changed(current); };
+        panel.Children.Add(lineSpacing);
         var opacityText = new TextBlock { Text = $"Japanese opacity: {current.JapaneseOpacity:P0}", Margin = new Thickness(0, 12, 0, 4) };
         panel.Children.Add(opacityText);
         var opacity = new Slider { Minimum = .1, Maximum = 1, Value = current.JapaneseOpacity, TickFrequency = .1, IsSnapToTickEnabled = true };

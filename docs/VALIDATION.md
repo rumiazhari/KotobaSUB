@@ -112,3 +112,7 @@ Added persisted Japanese font weight (400–800) and wired it into `OutlinedText
 ## M6 text alignment checkpoint — 2026-09-15
 
 Added a persisted Left/Center/Right text-alignment setting for the Japanese token row. The native settings selector applies the value immediately, validation clamps unknown values back to Center, and the renderer uses the selected alignment when laying out token stacks. Native smoke verified a live Left change; the regenerated headless Chrome preview produced 78 sampled colors. Physical readability across window widths and mixed-DPI monitors remains part of the open acceptance matrix.
+
+## M6 line spacing checkpoint — 2026-09-15
+
+Exposed persisted vertical line spacing (0–32 px) in the native settings window and applied it to the previous/current/translation/next line stack without adding a background panel. Native smoke set the value to 12 and observed the live preference; the regenerated headless Chrome preview produced 79 sampled colors. Mixed-DPI and physical readability checks remain open.

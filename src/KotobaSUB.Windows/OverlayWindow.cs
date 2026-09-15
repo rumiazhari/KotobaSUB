@@ -78,7 +78,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     {
         current = frame; var line = frame.Current; text.Children.Clear(); text.MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36));
         if (line is null) return;
-        if (Preferences.PreviousLine && frame.Previous is { } previous && !string.IsNullOrWhiteSpace(previous.OriginalText)) text.Children.Add(Label(previous.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity));
+        if (Preferences.PreviousLine && frame.Previous is { } previous && !string.IsNullOrWhiteSpace(previous.OriginalText)) text.Children.Add(Line(Label(previous.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity)));
         var words = new WrapPanel { HorizontalAlignment = Alignment(Preferences.TextAlignmentMode), MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36)) };
         foreach (var token in line.Tokens)
         {
@@ -92,14 +92,15 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
             words.Children.Add(stack);
         }
         if (line.Tokens.Count == 0) words.Children.Add(Label(line.OriginalText, Preferences.FontSize, 1));
-        text.Children.Add(words);
-        if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Label(line.Translation, Preferences.FontSize * .55, Preferences.TranslationOpacity));
-        if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Label(next.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity));
+        text.Children.Add(Line(words));
+        if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Line(Label(line.Translation, Preferences.FontSize * .55, Preferences.TranslationOpacity)));
+        if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Line(Label(next.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity)));
     }
     private static string Romaji(LearningToken token) => token.PartOfSpeech == "助詞" && token.Surface is "は" or "へ" or "を"
         ? token.Surface switch { "は" => "wa", "へ" => "e", _ => "o" }
         : token.Reading is { } reading ? KanaRomanizer.Convert(reading) : "";
     private static HorizontalAlignment Alignment(string mode) => mode switch { "Left" => HorizontalAlignment.Left, "Right" => HorizontalAlignment.Right, _ => HorizontalAlignment.Center };
+    private FrameworkElement Line(FrameworkElement element) { element.Margin = new Thickness(0, Preferences.LineSpacing / 2, 0, Preferences.LineSpacing / 2); return element; }
     private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily, Preferences.JapaneseWeight)
     {
         Opacity = opacity, MinHeight = minHeight

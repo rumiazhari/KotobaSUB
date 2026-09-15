@@ -24,6 +24,7 @@ public sealed record OverlaySettings
     public bool NextLine { get; init; }
     public double GlobalOffsetSeconds { get; init; }
     public double TokenSpacing { get; init; } = 8;
+    public double LineSpacing { get; init; } = 0;
     public string? MonitorDeviceName { get; init; }
     public double MonitorRelativeLeft { get; init; }
     public double MonitorRelativeTop { get; init; }
@@ -34,6 +35,7 @@ public sealed record OverlaySettings
         Version = 1, Left = Finite(Left, 200), Top = Finite(Top, 650),
         Width = Clamp(Width, 320, 3840, 1000), Height = Clamp(Height, 140, 1200, 240),
         FontSize = Clamp(FontSize, 18, 72, 36), TokenSpacing = Clamp(TokenSpacing, 0, 32, 8),
+        LineSpacing = Clamp(LineSpacing, 0, 32, 0),
         JapaneseWeight = Math.Clamp(JapaneseWeight, 400, 800),
         JapaneseOpacity = Clamp(JapaneseOpacity, 0.1, 1, 1),
         FuriganaOpacity = Clamp(FuriganaOpacity, 0.1, 1, .95), GlossOpacity = Clamp(GlossOpacity, 0.1, 1, .85),
