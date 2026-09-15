@@ -104,7 +104,7 @@ internal static class LyricsTests
         {
             var cache = new LyricsCache(Path.Combine(directory, "lyrics"), _ => { });
             var candidate = new LyricsCandidate("NetEase", "1", "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), "[00:01]私", "[00:01]I", "[00:01]watashi");
-            cache.Save(Track(), candidate); Check(cache.Load(Track()) == candidate);
+            cache.Save(Track(), candidate); Check(cache.Load(Track()) == candidate); Check(cache.Clear() == 1); Check(cache.Load(Track()) is null); cache.Save(Track(), candidate);
             Check(cache.Load(Track(seconds: 90)) is null);
             File.WriteAllText(Path.Combine(directory, "lyrics", Track().Identity + ".json"), "invalid"); Check(cache.Load(Track()) is null);
             var offsets = new SongOffsets(Path.Combine(directory, "offsets.json"), _ => { }); offsets.Set("song", 1.5);

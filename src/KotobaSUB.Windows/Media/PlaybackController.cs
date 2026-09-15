@@ -20,6 +20,7 @@ internal sealed class PlaybackController : IDisposable
     private readonly HttpClient http = new();
     private readonly SmtcMetadataProvider metadata;
     private readonly LyricsSession session;
+    private readonly LyricsCache lyricsCache;
     private readonly SongOffsets offsets;
     private readonly DispatcherTimer timer;
     private readonly CancellationTokenSource lifetime = new();
@@ -44,7 +45,8 @@ internal sealed class PlaybackController : IDisposable
         learning = new LearningRenderer(overlay, Path.Combine(directory, "annotations"), log);
         readings = new(log);
         var client = new LyricsHttpClient(http);
-        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], new LyricsCache(Path.Combine(directory, "lyrics-v1"), log), log, readings.Romanize), log);
+        lyricsCache = new LyricsCache(Path.Combine(directory, "lyrics-v1"), log);
+        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], lyricsCache, log, readings.Romanize), log);
         offsets = new(Path.Combine(directory, "song-offsets.json"), log);
         metadata = new(overlay.Dispatcher, log);
         metadata.Changed += OnMedia;
@@ -223,6 +225,7 @@ internal sealed class PlaybackController : IDisposable
     }
 
     public void SettingsChanged() { rendered = null; Refresh(); }
+    public int ClearLyricsCache() => lyricsCache.Clear();
 
     public void Dispose()
     {

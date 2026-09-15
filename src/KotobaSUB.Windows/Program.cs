@@ -77,6 +77,7 @@ internal static class Program
         menu.Items.Add("Sync later (0.5 s)", null, (_, _) => playback.AdjustSync(-.5));
         menu.Items.Add("Wrong lyrics", null, (_, _) => playback.Retry(true));
         menu.Items.Add("Retry source", null, (_, _) => playback.Retry(false));
+        menu.Items.Add("Clear lyrics cache", null, (_, _) => { int removed = playback.ClearLyricsCache(); tray.ShowBalloonTip(2500, "KotobaSUB", $"Cleared {removed} cached lyric file(s).", Forms.ToolTipIcon.Info); });
         string modelPath = Path.Combine(directory, "models", "ggml-base.bin");
         using var modelHttp = new HttpClient(); modelHttp.DefaultRequestHeaders.UserAgent.ParseAdd("KotobaSUB/0.1 (+https://github.com/rumiazhari/KotobaSUB)");
         var modelInstaller = new WhisperModelInstaller(); CancellationTokenSource? modelDownload = null;

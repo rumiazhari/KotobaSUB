@@ -134,3 +134,7 @@ Exposed the existing font-family setting in the compact native settings window w
 ## M6 settings opacity checkpoint — 2026-09-15
 
 Exposed Japanese text opacity in the compact settings window and connected it to rendering with live updates. Continue with remaining layer-specific appearance controls, cache controls and physical acceptance.
+
+## M6 cache control checkpoint — 2026-09-15
+
+Implemented the first cache-control surface: a tray action that clears lyric cache files while leaving sync offsets and settings intact. Regression coverage validates save, clear and cache miss behavior. Continue with model selection/remaining appearance controls and physical acceptance.

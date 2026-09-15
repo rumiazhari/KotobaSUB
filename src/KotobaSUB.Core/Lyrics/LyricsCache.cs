@@ -36,6 +36,17 @@ public sealed class LyricsCache(string directory, Action<string> log)
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { log($"cache write failed: {ex.Message}"); }
     }
+    public int Clear()
+    {
+        if (!Directory.Exists(directory)) return 0;
+        int removed = 0;
+        foreach (var file in new DirectoryInfo(directory).GetFiles("*.json"))
+        {
+            try { file.Delete(); removed++; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { log($"cache clear failed: {ex.Message}"); }
+        }
+        return removed;
+    }
 }
 
 public sealed class SongOffsets

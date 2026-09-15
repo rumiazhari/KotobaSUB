@@ -92,3 +92,7 @@ Added a bounded editable font-family selector using the existing `OverlaySetting
 ## M6 settings opacity checkpoint — 2026-09-15
 
 Added a validated Japanese-text opacity setting from 10% to 100%, wired into the actual token renderer and applied live. Native smoke set it to 60%; all regressions passed and the regenerated headless Chrome preview contained 54 sampled colors.
+
+## M6 cache control checkpoint — 2026-09-15
+
+Added a compact **Clear lyrics cache** tray action backed by `LyricsCache.Clear()`. It removes only cached lyric JSON files, preserves per-song sync offsets, and reports the count in a tray notification. The cache regression saved, cleared, and reloaded a candidate successfully; the complete native suite remains at 0 failures.
