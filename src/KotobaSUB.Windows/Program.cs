@@ -108,21 +108,24 @@ internal static class Program
         menu.Items.Add(modelAction);
         var startup = new StartupRegistration();
         bool changingStartup = false;
-        var startWithWindows = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Checked = startup.Enabled };
-        startWithWindows.CheckedChanged += (_, _) =>
+        bool TrySetStartup(bool enabled)
         {
-            if (changingStartup) return;
             try
             {
                 string executablePath = Environment.ProcessPath ?? throw new InvalidOperationException("Application path unavailable.");
                 if (!Path.GetFileName(executablePath).Equals("KotobaSUB.exe", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Startup registration is available from the published KotobaSUB executable.");
-                startup.Set(startWithWindows.Checked, executablePath);
+                startup.Set(enabled, executablePath); return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) { Report($"Startup registration failed: {ex.Message}"); return false; }
+        }
+        var startWithWindows = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Checked = startup.Enabled };
+        startWithWindows.CheckedChanged += (_, _) =>
+        {
+            if (changingStartup) return;
+            if (!TrySetStartup(startWithWindows.Checked))
             {
                 changingStartup = true; startWithWindows.Checked = false; changingStartup = false;
-                Report($"Startup registration failed: {ex.Message}");
             }
         };
         menu.Items.Add(startWithWindows);
@@ -135,7 +138,7 @@ internal static class Program
             {
                 overlay.Apply(value with { Left = overlay.Left, Top = overlay.Top, Width = overlay.Width, Height = overlay.Height });
                 Save(); playback.SettingsChanged();
-            });
+            }, () => startup.Enabled, TrySetStartup);
             settings.Closed += (_, _) => settings = null; settings.Show();
         }
         menu.Items.Add("Settings", null, (_, _) => OpenSettings()); tray.DoubleClick += (_, _) => OpenSettings();

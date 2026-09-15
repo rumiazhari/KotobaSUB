@@ -2,7 +2,7 @@ namespace KotobaSUB.Windows;
 
 internal sealed class SettingsWindow : Window
 {
-    public SettingsWindow(OverlaySettings initial, Action<OverlaySettings> changed)
+    public SettingsWindow(OverlaySettings initial, Action<OverlaySettings> changed, Func<bool>? startupEnabled = null, Func<bool, bool>? setStartup = null)
     {
         Title = "KotobaSUB settings"; Width = 390; SizeToContent = SizeToContent.Height; MaxHeight = SystemParameters.WorkArea.Height - 40; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -54,6 +54,12 @@ internal sealed class SettingsWindow : Window
         LayerOpacity("Gloss opacity", current.GlossOpacity, (s, v) => s with { GlossOpacity = v });
         LayerOpacity("Translation opacity", current.TranslationOpacity, (s, v) => s with { TranslationOpacity = v });
         LayerOpacity("Inactive line opacity", current.InactiveLineOpacity, (s, v) => s with { InactiveLineOpacity = v });
+        if (startupEnabled is not null && setStartup is not null)
+        {
+            var startup = new CheckBox { Content = "Start with Windows", IsChecked = startupEnabled(), Margin = new Thickness(0, 14, 0, 4) };
+            startup.Click += (_, _) => { bool desired = startup.IsChecked == true; if (!setStartup(desired)) startup.IsChecked = !desired; };
+            panel.Children.Add(startup);
+        }
         var offsetText = new TextBlock { Text = $"Global sync: {current.GlobalOffsetSeconds:+0.0;-0.0;0.0} s (positive = earlier)", Margin = new Thickness(0, 12, 0, 4) };
         panel.Children.Add(offsetText);
         var offset = new Slider { Minimum = -30, Maximum = 30, Value = current.GlobalOffsetSeconds, TickFrequency = .5, IsSnapToTickEnabled = true };

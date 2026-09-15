@@ -100,3 +100,7 @@ Added a compact **Clear lyrics cache** tray action backed by `LyricsCache.Clear(
 ## M6 layer opacity checkpoint — 2026-09-15
 
 Moved furigana, gloss, supplied-translation and inactive-line opacity into validated persisted settings. Native smoke changed furigana opacity to 70% and verified the live value; the full suite passed and the regenerated Chrome preview contained 61 sampled colors.
+
+## M6 settings startup checkpoint — 2026-09-15
+
+The native settings window now exposes the same guarded **Start with Windows** preference as the tray. Native smoke toggled it through the settings callback and observed the change; the complete suite passed and the regenerated Chrome preview contained 62 sampled colors. Development launches still refuse to register a `dotnet` command.

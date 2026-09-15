@@ -142,3 +142,7 @@ Implemented the first cache-control surface: a tray action that clears lyric cac
 ## M6 layer opacity checkpoint — 2026-09-15
 
 Implemented independent persisted opacity controls for furigana, gloss, supplied translation and inactive context lines, all applied through the existing renderer. Continue with remaining cache/model controls and physical acceptance.
+
+## M6 settings startup checkpoint — 2026-09-15
+
+Added the opt-in startup toggle to the native settings window, sharing the existing current-user registration guard with the tray. Continue with remaining model-selection controls and physical acceptance.
