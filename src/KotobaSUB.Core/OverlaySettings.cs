@@ -9,6 +9,10 @@ public sealed record OverlaySettings
     public double Height { get; init; } = 240;
     public double FontSize { get; init; } = 36;
     public double JapaneseOpacity { get; init; } = 1;
+    public double FuriganaOpacity { get; init; } = .95;
+    public double GlossOpacity { get; init; } = .85;
+    public double TranslationOpacity { get; init; } = .9;
+    public double InactiveLineOpacity { get; init; } = .45;
     public string FontFamily { get; init; } = "Yu Gothic UI";
     public bool Furigana { get; init; } = true;
     public bool Romaji { get; init; }
@@ -29,6 +33,8 @@ public sealed record OverlaySettings
         Width = Clamp(Width, 320, 3840, 1000), Height = Clamp(Height, 140, 1200, 240),
         FontSize = Clamp(FontSize, 18, 72, 36), TokenSpacing = Clamp(TokenSpacing, 0, 32, 8),
         JapaneseOpacity = Clamp(JapaneseOpacity, 0.1, 1, 1),
+        FuriganaOpacity = Clamp(FuriganaOpacity, 0.1, 1, .95), GlossOpacity = Clamp(GlossOpacity, 0.1, 1, .85),
+        TranslationOpacity = Clamp(TranslationOpacity, 0.1, 1, .9), InactiveLineOpacity = Clamp(InactiveLineOpacity, 0.1, 1, .45),
         FontFamily = string.IsNullOrWhiteSpace(FontFamily) ? "Yu Gothic UI" : FontFamily,
         MonitorDeviceName = string.IsNullOrWhiteSpace(MonitorDeviceName) ? null : MonitorDeviceName.Trim(),
         MonitorRelativeLeft = Clamp(MonitorRelativeLeft, 0, 1, 0), MonitorRelativeTop = Clamp(MonitorRelativeTop, 0, 1, 0)

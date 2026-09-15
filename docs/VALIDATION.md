@@ -96,3 +96,7 @@ Added a validated Japanese-text opacity setting from 10% to 100%, wired into the
 ## M6 cache control checkpoint — 2026-09-15
 
 Added a compact **Clear lyrics cache** tray action backed by `LyricsCache.Clear()`. It removes only cached lyric JSON files, preserves per-song sync offsets, and reports the count in a tray notification. The cache regression saved, cleared, and reloaded a candidate successfully; the complete native suite remains at 0 failures.
+
+## M6 layer opacity checkpoint — 2026-09-15
+
+Moved furigana, gloss, supplied-translation and inactive-line opacity into validated persisted settings. Native smoke changed furigana opacity to 70% and verified the live value; the full suite passed and the regenerated Chrome preview contained 61 sampled colors.

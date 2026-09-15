@@ -138,3 +138,7 @@ Exposed Japanese text opacity in the compact settings window and connected it to
 ## M6 cache control checkpoint — 2026-09-15
 
 Implemented the first cache-control surface: a tray action that clears lyric cache files while leaving sync offsets and settings intact. Regression coverage validates save, clear and cache miss behavior. Continue with model selection/remaining appearance controls and physical acceptance.
+
+## M6 layer opacity checkpoint — 2026-09-15
+
+Implemented independent persisted opacity controls for furigana, gloss, supplied translation and inactive context lines, all applied through the existing renderer. Continue with remaining cache/model controls and physical acceptance.

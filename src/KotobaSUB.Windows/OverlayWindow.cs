@@ -78,23 +78,23 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     {
         current = frame; var line = frame.Current; text.Children.Clear(); text.MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36));
         if (line is null) return;
-        if (Preferences.PreviousLine && frame.Previous is { } previous && !string.IsNullOrWhiteSpace(previous.OriginalText)) text.Children.Add(Label(previous.OriginalText, Preferences.FontSize * .6, .45));
+        if (Preferences.PreviousLine && frame.Previous is { } previous && !string.IsNullOrWhiteSpace(previous.OriginalText)) text.Children.Add(Label(previous.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity));
         var words = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = (Math.Max(280, Width - 32) * Math.Max(1, Preferences.FontSize / 36)) };
         foreach (var token in line.Tokens)
         {
             var stack = new StackPanel { Margin = new Thickness(Preferences.TokenSpacing / 2, 4, Preferences.TokenSpacing / 2, 4) };
             stack.MouseLeftButtonUp += (_, _) => { if (StudyInteractive) TokenSelected?.Invoke(token); };
             if (Preferences.Furigana)
-                stack.Children.Add(Label(JapaneseText.HasKanji(token.Surface) ? token.Reading ?? "" : "", Preferences.FontSize * .45, .95, Preferences.FontSize * .7));
-            if (Preferences.Romaji) stack.Children.Add(Label(Romaji(token), Preferences.FontSize * .42, .9, Preferences.FontSize * .65));
+                stack.Children.Add(Label(JapaneseText.HasKanji(token.Surface) ? token.Reading ?? "" : "", Preferences.FontSize * .45, Preferences.FuriganaOpacity, Preferences.FontSize * .7));
+            if (Preferences.Romaji) stack.Children.Add(Label(Romaji(token), Preferences.FontSize * .42, Preferences.FuriganaOpacity, Preferences.FontSize * .65));
             stack.Children.Add(Label(token.Surface, Preferences.FontSize, Preferences.JapaneseOpacity));
-            if (Preferences.Gloss) stack.Children.Add(Label(token.Glosses.FirstOrDefault() ?? "", Preferences.FontSize * .43, .85, Preferences.FontSize * .65));
+            if (Preferences.Gloss) stack.Children.Add(Label(token.Glosses.FirstOrDefault() ?? "", Preferences.FontSize * .43, Preferences.GlossOpacity, Preferences.FontSize * .65));
             words.Children.Add(stack);
         }
         if (line.Tokens.Count == 0) words.Children.Add(Label(line.OriginalText, Preferences.FontSize, 1));
         text.Children.Add(words);
-        if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Label(line.Translation, Preferences.FontSize * .55, .9));
-        if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Label(next.OriginalText, Preferences.FontSize * .6, .45));
+        if (Preferences.Translation && !string.IsNullOrWhiteSpace(line.Translation)) text.Children.Add(Label(line.Translation, Preferences.FontSize * .55, Preferences.TranslationOpacity));
+        if (Preferences.NextLine && frame.Next is { } next && !string.IsNullOrWhiteSpace(next.OriginalText)) text.Children.Add(Label(next.OriginalText, Preferences.FontSize * .6, Preferences.InactiveLineOpacity));
     }
     private static string Romaji(LearningToken token) => token.PartOfSpeech == "助詞" && token.Surface is "は" or "へ" or "を"
         ? token.Surface switch { "は" => "wa", "へ" => "e", _ => "o" }
