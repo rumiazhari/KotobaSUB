@@ -121,7 +121,15 @@ internal static class LyricsTests
             Check(!first.Fetched.Contains("1"));
             Check(await resolver.ResolveAsync(Track(), new HashSet<string> { good.Key }, true, CancellationToken.None) is null);
         }));
-        test("old track response cannot replace current track", () => RunAsync(async () =>
+        test("resolver retains bounded cross-provider shortlist", () => RunAsync(async () =>
+        {
+            var first = new TestSource("first", Enumerable.Range(1, 4).Select(i => new LyricsCandidate("first", i.ToString(), "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), $"[00:{i:00}]私")).ToArray());
+            var second = new TestSource("second", Enumerable.Range(5, 4).Select(i => new LyricsCandidate("second", i.ToString(), "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), $"[00:{i:00}]学校")).ToArray());
+            var resolver = new LyricsResolver([first, second], new LyricsCache(Path.Combine(directory, "shortlist"), _ => { }), _ => { });
+            var shortlist = await resolver.ResolveCandidatesAsync(Track(), new HashSet<string>(), true, CancellationToken.None);
+            Check(shortlist.Count == LyricsResolver.MaximumRetainedCandidates);
+            Check(shortlist.Select(x => x.Candidate.Source).Distinct().Count() == 2);
+        }));        test("old track response cannot replace current track", () => RunAsync(async () =>
         {
             var provider = new DeferredProvider(); using var session = new LyricsSession(provider, _ => { });
             session.Update(new(Track(), TimeSpan.Zero, true, 1, Stopwatch.GetTimestamp())); var old = session.Pending;

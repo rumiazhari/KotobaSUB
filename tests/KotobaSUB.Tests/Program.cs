@@ -14,6 +14,7 @@ try
     LyricsTests.Run(Test, directory);
     AudioTests.Run(Test);
     RoutingTests.Run(Test);
+    LyricVerificationTests.Run(Test);
     JapaneseTests.Run(Test, directory, args.SkipWhile(a => a != "--dictionary").Skip(1).FirstOrDefault());
     Test("safe settings limits", () => { var s = new OverlaySettings { Width = -1, FontSize = double.NaN, Top = double.PositiveInfinity }.Validate(); Equal(320d, s.Width); Equal(36d, s.FontSize); Equal(650d, s.Top); });
     Test("settings validate monitor placement", () => { var s = new OverlaySettings { MonitorDeviceName = "  \\.\\DISPLAY2  ", MonitorRelativeLeft = 3, MonitorRelativeTop = double.NaN }.Validate(); Equal("\\.\\DISPLAY2", s.MonitorDeviceName); Equal(1d, s.MonitorRelativeLeft); Equal(0d, s.MonitorRelativeTop); });

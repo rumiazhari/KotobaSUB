@@ -32,6 +32,7 @@ internal sealed class PlaybackController : IDisposable
     private bool asrDesired;
     private long asrGeneration;
     private long activeAsrGeneration;
+    private long mediaGeneration;
     private bool preview;
     private bool paused;
     private bool frozen;
@@ -46,7 +47,8 @@ internal sealed class PlaybackController : IDisposable
         readings = new(log);
         var client = new LyricsHttpClient(http);
         lyricsCache = new LyricsCache(Path.Combine(directory, "lyrics-v1"), log);
-        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], lyricsCache, log, readings.Romanize), log);
+        var lyricLearning = new LyricVerificationStore(Path.Combine(directory, "lyric-learning-v1.json"), log);
+        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], lyricsCache, log, readings.Romanize), log, lyricLearning);
         offsets = new(Path.Combine(directory, "song-offsets.json"), log);
         metadata = new(overlay.Dispatcher, log);
         metadata.Changed += OnMedia;
@@ -68,6 +70,7 @@ internal sealed class PlaybackController : IDisposable
 
     private void OnMedia(MediaSnapshot? snapshot)
     {
+        if (latest?.Track.Identity != snapshot?.Track.Identity) Interlocked.Increment(ref mediaGeneration);
         latest = snapshot;
         if (!preview && !paused && !frozen) session.Update(snapshot);
     }
@@ -118,7 +121,9 @@ internal sealed class PlaybackController : IDisposable
         AudioSourceStatus audioStatus; lock (asrGate) audioStatus = asrStatus;
         long now = Stopwatch.GetTimestamp();
         var decision = router.Evaluate(false, session.Timeline is not null, structured, audioStatus.Health, now);
-        SetAsrDesired(decision.ShouldRunAsr);
+        bool verifyStructured = session.Selected is { } selected && session.Assessments.TryGetValue(selected.Key, out var assessment)
+            && assessment.State is not (LyricConfidenceState.Verified or LyricConfidenceState.Rejected);
+        SetAsrDesired(decision.ShouldRunAsr || (session.Timeline is not null && verifyStructured));
         status(SourceStatus(decision, audioStatus));
         if (decision.Frame != rendered) { learning.RenderFrame(decision.Frame); rendered = decision.Frame; }
         ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation);
@@ -151,9 +156,18 @@ internal sealed class PlaybackController : IDisposable
     private void OnTranscript(TranscriptionSegment value)
     {
         long generation; lock (asrGate) generation = activeAsrGeneration;
+        long media = Volatile.Read(ref mediaGeneration);
         _ = overlay.Dispatcher.BeginInvoke(new Action(() =>
         {
             lock (asrGate) { if (disposed || !asrDesired || generation != asrGeneration) return; }
+            if (media != Volatile.Read(ref mediaGeneration) || session.Snapshot is null) return;
+            if (session.Candidates.Count > 0)
+            {
+                var snapshot = session.Snapshot;
+                var observed = snapshot.PositionAt(Stopwatch.GetTimestamp());
+                double progress = snapshot.Track.Duration > TimeSpan.Zero ? observed.TotalSeconds / snapshot.Track.Duration.TotalSeconds : 0;
+                foreach (var candidate in session.Candidates) session.AcceptEvidence(candidate.Candidate.Key, value, observed, progress);
+            }
             router.AcceptTranscript(value, Stopwatch.GetTimestamp()); rendered = null; Refresh();
         }));
     }
@@ -226,6 +240,7 @@ internal sealed class PlaybackController : IDisposable
 
     public void SettingsChanged() { rendered = null; Refresh(); }
     public int ClearLyricsCache() => lyricsCache.Clear();
+    public void ClearLearnedLyrics() => session.ClearLearnedDecisions();
 
     public void Dispose()
     {

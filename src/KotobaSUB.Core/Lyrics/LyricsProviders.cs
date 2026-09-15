@@ -20,51 +20,83 @@ public interface ILyricsSource
     Task<LyricsCandidate> FetchAsync(LyricsCandidate candidate, CancellationToken token);
 }
 
-public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log, Func<string, string?>? readingAlias = null) : ILyricsProvider
+public sealed record LyricsCandidateMatch(LyricsCandidate Candidate, MatchDecision Match);
+public interface IMultiLyricsProvider
 {
+    Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token);
+}
+
+public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log, Func<string, string?>? readingAlias = null) : ILyricsProvider, IMultiLyricsProvider
+{
+    public const int MaximumRetainedCandidates = 6;
+
     public Task<LyricsCandidate?> ResolveAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token) =>
-        Task.Run(() => ResolveCoreAsync(track, rejected, bypassCache, token), token);
-    private async Task<LyricsCandidate?> ResolveCoreAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token)
+        Task.Run(async () =>
+        {
+            var shortlist = await ResolveCandidatesAsync(track, rejected, bypassCache, token).ConfigureAwait(false);
+            var selected = shortlist.FirstOrDefault()?.Candidate;
+            if (selected is not null) { cache.Save(track, selected); log($"selected {selected.Key}"); }
+            return selected;
+        }, token);
+
+    public Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token) =>
+        Task.Run(() => ResolveCandidatesCoreAsync(track, rejected, bypassCache, token), token);
+
+    private async Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesCoreAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token)
     {
         if (!bypassCache && cache.Load(track, readingAlias) is { } cached && !rejected.Contains(cached.Key))
-        { log($"lyrics cache hit {cached.Key}"); return cached; }
+        {
+            log($"lyrics cache hit {cached.Key}");
+            return [new(cached, MetadataMatching.Evaluate(track, cached.Title, cached.Artist, cached.Duration, readingAlias))];
+        }
+
+        var titles = MetadataMatching.TitleAliases(track.Title);
+        string artist = MetadataMatching.PrimaryArtist(track.Artist);
+        string localArtist = readingAlias?.Invoke(artist) ?? KanaRomanizer.Convert(artist);
+        var queries = titles.SelectMany(t => new[]
+        {
+            artist + " " + t,
+            localArtist + " " + (readingAlias?.Invoke(t) ?? KanaRomanizer.Convert(t))
+        }).Append(titles[0]).Distinct().Take(3).ToArray();
+        var discovered = new Dictionary<string, (LyricsCandidate Candidate, MatchDecision Match, ILyricsSource Source)>();
+
         foreach (var source in sources)
         {
-            var candidates = new Dictionary<string, LyricsCandidate>();
-            // Native title and explicit alternate-script aliases are retained; no online romanization.
-            var titles = MetadataMatching.TitleAliases(track.Title);
-            string artist = MetadataMatching.PrimaryArtist(track.Artist);
-            string localArtist = readingAlias?.Invoke(artist) ?? KanaRomanizer.Convert(artist);
-            var queries = titles.SelectMany(t => new[] { artist + " " + t, localArtist + " " + (readingAlias?.Invoke(t) ?? KanaRomanizer.Convert(t)) }).Append(titles[0]).Distinct().Take(3);
             foreach (string query in queries)
-            {
-                token.ThrowIfCancellationRequested();
-                try { foreach (var candidate in await source.SearchAsync(query, token).ConfigureAwait(false)) candidates[candidate.Key] = candidate; }
-                catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException && !token.IsCancellationRequested)
-                { log($"{source.Name} search failed: {ex.Message}"); }
-            }
-            var ranked = candidates.Values.Where(c => !rejected.Contains(c.Key)).Select(c => (Candidate: c, Match: MetadataMatching.Evaluate(track, c.Title, c.Artist, c.Duration, readingAlias))).ToArray();
-            foreach (var c in ranked) log($"candidate {c.Candidate.Key}: {c.Match.Reason}; score={c.Match.Score:F1}");
-            foreach (var match in ranked.Where(c => c.Match.Accepted).OrderByDescending(c => c.Match.Score).Take(4))
             {
                 token.ThrowIfCancellationRequested();
                 try
                 {
-                    var resolved = await source.FetchAsync(match.Candidate, token).ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(resolved.Original) || !new LyricTimeline(resolved.Original, resolved.Translation, track.Duration).HasText) continue;
-                    token.ThrowIfCancellationRequested();
-                    cache.Save(track, resolved);
-                    log($"selected {resolved.Key}; score={match.Match.Score:F1}");
-                    return resolved;
+                    foreach (var candidate in await source.SearchAsync(query, token).ConfigureAwait(false))
+                    {
+                        if (rejected.Contains(candidate.Key)) continue;
+                        var match = MetadataMatching.Evaluate(track, candidate.Title, candidate.Artist, candidate.Duration, readingAlias);
+                        log($"candidate {candidate.Key}: {match.Reason}; score={match.Score:F1}");
+                        if (match.Accepted && (!discovered.TryGetValue(candidate.Key, out var prior) || match.Score > prior.Match.Score)) discovered[candidate.Key] = (candidate, match, source);
+                    }
                 }
                 catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException && !token.IsCancellationRequested)
-                { log($"{source.Name} lyrics failed: {ex.Message}"); }
+                { log($"{source.Name} search failed: {ex.Message}"); }
             }
         }
-        return null;
+
+        var retained = new List<LyricsCandidateMatch>(MaximumRetainedCandidates);
+        foreach (var item in discovered.Values.OrderByDescending(x => x.Match.Score).Take(MaximumRetainedCandidates))
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                var resolved = await item.Source.FetchAsync(item.Candidate, token).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(resolved.Original) || !new LyricTimeline(resolved.Original, resolved.Translation, track.Duration).HasText) continue;
+                retained.Add(new(resolved, item.Match));
+                log($"retained {resolved.Key}; metadata={item.Match.Score:F1}");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException && !token.IsCancellationRequested)
+            { log($"{item.Source.Name} lyrics failed: {ex.Message}"); }
+        }
+        return retained;
     }
 }
-
 public sealed class LyricsHttpClient(HttpClient client)
 {
     public async Task<JsonDocument> GetAsync(string uri, CancellationToken token)

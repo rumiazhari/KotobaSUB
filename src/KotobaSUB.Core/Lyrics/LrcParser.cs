@@ -53,6 +53,7 @@ public sealed class LyricTimeline
         }).Where(l => l.End > l.Start).ToArray();
     }
     public bool HasText => lines.Any(l => !string.IsNullOrWhiteSpace(l.OriginalText));
+    public IReadOnlyList<SubtitleLine> Lines => lines;
     public SubtitleFrame At(TimeSpan position)
     {
         int i = Array.FindLastIndex(lines, l => l.Start <= position);

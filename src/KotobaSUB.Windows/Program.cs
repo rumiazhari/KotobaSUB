@@ -78,6 +78,7 @@ internal static class Program
         menu.Items.Add("Wrong lyrics", null, (_, _) => playback.Retry(true));
         menu.Items.Add("Retry source", null, (_, _) => playback.Retry(false));
         menu.Items.Add("Clear lyrics cache", null, (_, _) => { int removed = playback.ClearLyricsCache(); tray.ShowBalloonTip(2500, "KotobaSUB", $"Cleared {removed} cached lyric file(s).", Forms.ToolTipIcon.Info); });
+        menu.Items.Add("Clear learned lyric decisions", null, (_, _) => { playback.ClearLearnedLyrics(); tray.ShowBalloonTip(2500, "KotobaSUB", "Cleared learned lyric verification for the current track.", Forms.ToolTipIcon.Info); });
         string modelPath = Path.Combine(directory, "models", "ggml-base.bin");
         using var modelHttp = new HttpClient(); modelHttp.DefaultRequestHeaders.UserAgent.ParseAdd("KotobaSUB/0.1 (+https://github.com/rumiazhari/KotobaSUB)");
         var modelInstaller = new WhisperModelInstaller(); CancellationTokenSource? modelDownload = null;

@@ -90,4 +90,4 @@ On a later playback, load a verified profile after rechecking current metadata a
 
 ## Current status
 
-Planning complete from the current tree. No verification/alignment code has been changed yet. The next implementation commit is the deterministic Core comparison and alignment layer.
+Stages 1-4 are implemented in the Core and Windows playback path. The resolver retains up to six metadata-accepted synchronized candidates, `LyricVerifier` consumes local ASR fragments as evidence, and `LyricsSession` applies robust offset/drift models without mutating provider timestamps. `LyricVerificationStore` persists bounded verified/rejected profiles and compact anchors in versioned JSON; it stores no audio or transcript history. Structured playback keeps selected provider text authoritative while local ASR runs only while the selected candidate remains unresolved. Transcript callbacks carry media and ASR generations so stale results cannot affect a later track. The tray exposes a reversible clear-learned-decisions action. Strategic window scheduling, richer piecewise drift and controlled real-audio acceptance remain follow-up work.
