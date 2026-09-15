@@ -85,8 +85,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
                     assessments[item.Candidate.Key] = profile?.Assessment ?? LyricConfidenceEvaluator.Start(item.Candidate.Key, item.Match.Score);
                     if (profile is not null) learnedAlignments[item.Candidate.Key] = profile.Alignment;
                 }
-                var first = shortlist.Select(x => x.Candidate).FirstOrDefault(x => assessments[x.Key].State != LyricConfidenceState.Rejected)
-                    ?? shortlist.Select(x => x.Candidate).FirstOrDefault();
+                var first = shortlist.Select(x => x.Candidate).FirstOrDefault(x => assessments[x.Key].State != LyricConfidenceState.Rejected);
                 SetSelected(first);
                 Status = first is null ? "No timed lyrics" : $"{first.Source} candidate shortlist";
             }
