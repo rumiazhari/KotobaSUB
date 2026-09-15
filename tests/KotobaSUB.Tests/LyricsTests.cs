@@ -121,6 +121,17 @@ internal static class LyricsTests
             Check(!first.Fetched.Contains("1"));
             Check(await resolver.ResolveAsync(Track(), new HashSet<string> { good.Key }, true, CancellationToken.None) is null);
         }));
+        test("unverified cache keeps immediate candidate while discovering alternates", () => RunAsync(async () =>
+        {
+            string dir = Path.Combine(directory, "cache-alternates"); var cache = new LyricsCache(dir, _ => { });
+            var cached = new LyricsCandidate("cached", "1", "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), "[00:01]私");
+            var alternate = new LyricsCandidate("alternate", "2", "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), "[00:02]学校"); cache.Save(Track(), cached);
+            var resolver = new LyricsResolver([new TestSource("alternate", [alternate])], cache, _ => { });
+            var candidates = await resolver.ResolveCandidatesAsync(Track(), new HashSet<string>(), false, CancellationToken.None);
+            Check(candidates.Any(x => x.Candidate.Key == cached.Key) && candidates.Any(x => x.Candidate.Key == alternate.Key));
+            var rejected = await resolver.ResolveCandidatesAsync(Track(), new HashSet<string> { cached.Key }, false, CancellationToken.None);
+            Check(rejected.All(x => x.Candidate.Key != cached.Key) && rejected.Any(x => x.Candidate.Key == alternate.Key));
+        }));
         test("resolver retains bounded cross-provider shortlist", () => RunAsync(async () =>
         {
             var first = new TestSource("first", Enumerable.Range(1, 4).Select(i => new LyricsCandidate("first", i.ToString(), "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), $"[00:{i:00}]私")).ToArray());

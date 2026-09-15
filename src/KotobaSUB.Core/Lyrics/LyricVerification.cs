@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using KotobaSUB.Core.Audio;
@@ -233,14 +234,57 @@ public static class LyricAlignmentEstimator
 
 public sealed class LyricVerifier
 {
-    private readonly TimeSpan searchWindow;
-    public LyricVerifier(TimeSpan? searchWindow = null) => this.searchWindow = searchWindow ?? TimeSpan.FromSeconds(8);
+    private readonly TimeSpan trackingWindow;
+    private readonly TimeSpan acquisitionWindow = TimeSpan.FromSeconds(24);
+    public LyricVerifier(TimeSpan? searchWindow = null) => trackingWindow = searchWindow ?? TimeSpan.FromSeconds(4);
 
-    public LyricCandidateEvidence Probe(string candidateKey, LyricTimeline timeline, TranscriptionSegment segment, TimeSpan observedAudioTime, double songProgress)
+    public LyricCandidateEvidence Probe(string candidateKey, LyricTimeline timeline, TranscriptionSegment segment, TimeSpan observedAudioTime, double songProgress, LyricAlignmentModel? alignment = null, int previousLineIndex = -1)
     {
-        var nearby = timeline.Lines.Select((line, index) => (line, index, distance: Math.Abs((line.Start - observedAudioTime).TotalSeconds))).Where(x => x.distance <= searchWindow.TotalSeconds).OrderBy(x => x.distance).ThenBy(x => x.index).ToArray();
-        var best = nearby.Select(x => (x, comparison: LyricComparison.Compare(segment.Text, x.line.OriginalText))).OrderByDescending(x => x.comparison.Score).ThenBy(x => x.x.distance).FirstOrDefault();
+        bool tracking = alignment is { AnchorCount: >= 3 };
+        TimeSpan expectedProvider = alignment is null ? observedAudioTime : alignment.ProviderTimeAtAudio(observedAudioTime);
+        double window = (tracking ? trackingWindow : acquisitionWindow).TotalSeconds;
+        var nearby = timeline.Lines.Select((line, index) => (line, index, distance: Math.Abs((line.Start - expectedProvider).TotalSeconds)))
+            .Where(x => x.distance <= window).ToArray();
+        var best = nearby.Select(x =>
+        {
+            var comparison = LyricComparison.Compare(segment.Text, x.line.OriginalText);
+            double score = comparison.Score - Math.Min(.25, x.distance / window * .25) - (previousLineIndex >= 0 && x.index + 2 < previousLineIndex ? .2 : 0);
+            return (x, comparison, score);
+        }).OrderByDescending(x => x.score).ThenBy(x => x.x.distance).FirstOrDefault();
         if (best.x.line is null) return new(candidateKey, -1, observedAudioTime, observedAudioTime, 0, segment.Probability, songProgress);
         return new(candidateKey, best.x.index, best.x.line.Start, observedAudioTime, best.comparison.Score, segment.Probability, songProgress);
     }
+}
+public sealed class LyricProbeScheduler
+{
+    private static readonly TimeSpan ProbeWindow = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan MinimumInterval = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan MaximumInterval = TimeSpan.FromSeconds(60);
+    private long nextProbe;
+    private long activeUntil;
+    private TimeSpan interval = TimeSpan.FromSeconds(10);
+
+    public TimeSpan Interval => interval;
+    public bool IsActive(long now) => now < activeUntil;
+    public bool TryStart(long now, LyricConfidenceState state)
+    {
+        if (state is LyricConfidenceState.Verified or LyricConfidenceState.Rejected || now < nextProbe) return false;
+        activeUntil = now + Ticks(ProbeWindow);
+        nextProbe = now + Ticks(interval);
+        return true;
+    }
+    public void RecordInference(TimeSpan latency, LyricConfidenceState state)
+    {
+        if (state == LyricConfidenceState.Verified) { nextProbe = long.MaxValue; activeUntil = 0; return; }
+        double factor = latency > ProbeWindow ? 1.75 : .9;
+        interval = TimeSpan.FromSeconds(Math.Clamp(interval.TotalSeconds * factor, MinimumInterval.TotalSeconds, MaximumInterval.TotalSeconds));
+    }
+    public TimeSpan? NextDelay(long now)
+    {
+        if (nextProbe == long.MaxValue) return null;
+        long target = IsActive(now) ? activeUntil : nextProbe;
+        return TimeSpan.FromSeconds(Math.Max(0, target - now) / (double)Stopwatch.Frequency);
+    }
+    public void Reset() { nextProbe = 0; activeUntil = 0; interval = TimeSpan.FromSeconds(10); }
+    private static long Ticks(TimeSpan value) => (long)Math.Round(value.TotalSeconds * Stopwatch.Frequency);
 }

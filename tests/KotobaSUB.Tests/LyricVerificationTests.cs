@@ -83,6 +83,16 @@ internal static class LyricVerificationTests
             var corrected = LyricAlignmentEstimator.CorrectMonotonic([TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(20)], new LyricAlignmentModel(1, .6));
             Check(corrected.Zip(corrected.Skip(1)).All(p => p.Second >= p.First));
         });
+    test("acquisition mode finds a badly shifted lyric while tracking stays tight", () =>
+    {
+        var timeline = new LyricTimeline("[00:10]君の知らない物語\\n[00:40]別の長い歌詞", null, TimeSpan.FromSeconds(60));
+        var segment = new TranscriptionSegment("君の知らない物語", TimeSpan.Zero, TimeSpan.FromSeconds(1), .9f, .1f, true);
+        var verifier = new LyricVerifier();
+        var acquired = verifier.Probe("candidate", timeline, segment, TimeSpan.FromSeconds(22), .2);
+        Check(acquired.LineIndex == 0 && Math.Abs(acquired.ResidualSeconds - 12) < .01);
+        var tracked = verifier.Probe("candidate", timeline, segment, TimeSpan.FromSeconds(22), .2, new LyricAlignmentModel(1, 12, 0, 3));
+        Check(tracked.LineIndex == 0);
+    });
     test("learning store persists verified and rejected profiles safely", () =>
         {
             string directory = Path.Combine(Path.GetTempPath(), "KotobaSUB-learning-" + Guid.NewGuid()); Directory.CreateDirectory(directory);

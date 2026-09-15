@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using KotobaSUB.Core.Audio;
+using KotobaSUB.Core.Adapted.FlyingLyrics;
 
 namespace KotobaSUB.Core.Lyrics;
 
@@ -13,6 +14,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
     private readonly Dictionary<string, LyricCandidateAssessment> assessments = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<LyricCandidateEvidence>> evidence = new(StringComparer.Ordinal);
     private readonly Dictionary<string, LyricAlignmentModel> learnedAlignments = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> previousLineIndices = new(StringComparer.Ordinal);
     private readonly LyricVerifier verifier = new();
     public MediaSnapshot? Snapshot { get; private set; }
     public LyricsCandidate? Selected { get; private set; }
@@ -56,7 +58,7 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
 
     private void ResetCandidates()
     {
-        Candidates = []; assessments.Clear(); evidence.Clear(); learnedAlignments.Clear(); AutomaticAlignment = new(); Selected = null; Timeline = null;
+        Candidates = []; assessments.Clear(); evidence.Clear(); learnedAlignments.Clear(); previousLineIndices.Clear(); AutomaticAlignment = new(); Selected = null; Timeline = null;
     }
 
     private void Start(bool bypassCache)
@@ -76,6 +78,17 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
         {
             if (provider is IMultiLyricsProvider multi)
             {
+                if (!bypassCache && provider is ICachedLyricsProvider cachedProvider && cachedProvider.LoadCached(track) is { } cached && !rejected.Contains(cached.Key))
+                {
+                    var cachedMatch = new LyricsCandidateMatch(cached, MetadataMatching.Evaluate(track, cached.Title, cached.Artist, cached.Duration));
+                    Candidates = [cachedMatch];
+                    var cachedProfile = learning?.Get(track.Identity, cached.Key);
+                    assessments[cached.Key] = cachedProfile?.Assessment ?? LyricConfidenceEvaluator.Start(cached.Key, cachedMatch.Match.Score);
+                    if (cachedProfile is not null) learnedAlignments[cached.Key] = cachedProfile.Alignment;
+                    if (assessments[cached.Key].State != LyricConfidenceState.Rejected) SetSelected(cached);
+                    Status = $"{cached.Source} cached lyrics"; Changed?.Invoke();
+                    if (cachedProfile?.State == LyricConfidenceState.Verified) return;
+                }
                 var shortlist = await multi.ResolveCandidatesAsync(track, new HashSet<string>(rejected), bypassCache, cancellation.Token).ConfigureAwait(false);
                 if (disposed || cancellation.IsCancellationRequested || expectedGeneration != generation) return;
                 Candidates = shortlist;
@@ -120,7 +133,9 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
         var candidate = Candidates.FirstOrDefault(x => x.Candidate.Key == candidateKey)?.Candidate;
         if (candidate?.Original is not { } original) return;
         var timeline = new LyricTimeline(original, candidate.Translation, Snapshot.Track.Duration);
-        var probe = verifier.Probe(candidateKey, timeline, segment, observedAudioTime, Math.Clamp(songProgress, 0, 1));
+        var alignment = learnedAlignments.GetValueOrDefault(candidateKey, new());
+        var probe = verifier.Probe(candidateKey, timeline, segment, observedAudioTime, Math.Clamp(songProgress, 0, 1), alignment.AnchorCount > 0 ? alignment : null, previousLineIndices.GetValueOrDefault(candidateKey, -1));
+        if (probe.LineIndex >= 0) previousLineIndices[candidateKey] = probe.LineIndex;
         var anchors = evidence.TryGetValue(candidateKey, out var existing) ? existing : evidence[candidateKey] = new();
         anchors.Add(probe);
         if (anchors.Count > LyricAlignmentEstimator.MaximumAnchors) anchors.RemoveAt(0);
@@ -140,7 +155,10 @@ public sealed class LyricsSession(ILyricsProvider provider, Action<string> log, 
                 }
                 else
                 {
-                    SetSelected(null); Status = "Lyrics candidate rejected; awaiting another source";
+                    rejected.Add(candidateKey);
+                    ResetCandidates();
+                    Start(true);
+                    Status = "Lyrics candidate rejected; searching alternates";
                 }
             }
             else

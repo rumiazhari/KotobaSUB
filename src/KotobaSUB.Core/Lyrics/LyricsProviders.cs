@@ -21,34 +21,41 @@ public interface ILyricsSource
 }
 
 public sealed record LyricsCandidateMatch(LyricsCandidate Candidate, MatchDecision Match);
+public interface ICachedLyricsProvider
+{
+    LyricsCandidate? LoadCached(MediaTrack track);
+}
 public interface IMultiLyricsProvider
 {
     Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token);
 }
 
-public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log, Func<string, string?>? readingAlias = null) : ILyricsProvider, IMultiLyricsProvider
+public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log, Func<string, string?>? readingAlias = null) : ILyricsProvider, IMultiLyricsProvider, ICachedLyricsProvider
 {
+    public LyricsCandidate? LoadCached(MediaTrack track) => cache.Load(track, readingAlias);
+
     public const int MaximumRetainedCandidates = 6;
 
     public Task<LyricsCandidate?> ResolveAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token) =>
         Task.Run(async () =>
         {
+            if (!bypassCache && cache.Load(track, readingAlias) is { } cached && !rejected.Contains(cached.Key))
+            {
+                log($"lyrics cache hit {cached.Key}");
+                return cached;
+            }
             var shortlist = await ResolveCandidatesAsync(track, rejected, bypassCache, token).ConfigureAwait(false);
             var selected = shortlist.FirstOrDefault()?.Candidate;
             if (selected is not null) { cache.Save(track, selected); log($"selected {selected.Key}"); }
             return selected;
         }, token);
-
     public Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token) =>
         Task.Run(() => ResolveCandidatesCoreAsync(track, rejected, bypassCache, token), token);
 
     private async Task<IReadOnlyList<LyricsCandidateMatch>> ResolveCandidatesCoreAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token)
     {
-        if (!bypassCache && cache.Load(track, readingAlias) is { } cached && !rejected.Contains(cached.Key))
-        {
-            log($"lyrics cache hit {cached.Key}");
-            return [new(cached, MetadataMatching.Evaluate(track, cached.Title, cached.Artist, cached.Duration, readingAlias))];
-        }
+        LyricsCandidate? cached = !bypassCache && cache.Load(track, readingAlias) is { } hit && !rejected.Contains(hit.Key) ? hit : null;
+        if (cached is not null) log($"lyrics cache hit {cached.Key}; searching alternates");
 
         var titles = MetadataMatching.TitleAliases(track.Title);
         string artist = MetadataMatching.PrimaryArtist(track.Artist);
@@ -81,7 +88,8 @@ public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsC
         }
 
         var retained = new List<LyricsCandidateMatch>(MaximumRetainedCandidates);
-        foreach (var item in discovered.Values.OrderByDescending(x => x.Match.Score).Take(MaximumRetainedCandidates))
+        if (cached is not null) retained.Add(new(cached, MetadataMatching.Evaluate(track, cached.Title, cached.Artist, cached.Duration, readingAlias)));
+        foreach (var item in discovered.Values.Where(x => cached is null || x.Candidate.Key != cached.Key).OrderByDescending(x => x.Match.Score).Take(Math.Max(0, MaximumRetainedCandidates - retained.Count)))
         {
             token.ThrowIfCancellationRequested();
             try

@@ -26,6 +26,8 @@ internal sealed class PlaybackController : IDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly SubtitleSourceRouter router = new();
     private readonly AudioTranscriptionSession asr;
+    private readonly AudioMediaClock audioClock = new();
+    private readonly LyricProbeScheduler probeScheduler = new();
     private readonly object asrGate = new();
     private Task asrTransition = Task.CompletedTask;
     private AudioSourceStatus asrStatus = new(AudioSourceHealth.Stopped, "Local ASR stopped");
@@ -56,6 +58,7 @@ internal sealed class PlaybackController : IDisposable
         string modelPath = FindModelPath(directory);
         asr = new AudioTranscriptionSession(new WasapiLoopbackAudioSource(), new WhisperTranscriber(modelPath, log), log);
         asr.Transcript += OnTranscript;
+        asr.CaptureObserved += OnCaptureObserved;
         asr.StatusChanged += OnAsrStatus;
         timer = new DispatcherTimer(DispatcherPriority.Background, overlay.Dispatcher);
         timer.Tick += (_, _) => { timer.Stop(); Refresh(); };
@@ -70,8 +73,11 @@ internal sealed class PlaybackController : IDisposable
 
     private void OnMedia(MediaSnapshot? snapshot)
     {
-        if (latest?.Track.Identity != snapshot?.Track.Identity) Interlocked.Increment(ref mediaGeneration);
+        bool mediaChanged = latest?.Track.Identity != snapshot?.Track.Identity;
+        if (mediaChanged) Interlocked.Increment(ref mediaGeneration);
         latest = snapshot;
+        audioClock.ObserveMedia(snapshot);
+        if (mediaChanged) probeScheduler.Reset();
         if (!preview && !paused && !frozen) session.Update(snapshot);
     }
 
@@ -123,10 +129,13 @@ internal sealed class PlaybackController : IDisposable
         var decision = router.Evaluate(false, session.Timeline is not null, structured, audioStatus.Health, now);
         bool verifyStructured = session.Selected is { } selected && session.Assessments.TryGetValue(selected.Key, out var assessment)
             && assessment.State is not (LyricConfidenceState.Verified or LyricConfidenceState.Rejected);
-        SetAsrDesired(decision.ShouldRunAsr || (session.Timeline is not null && verifyStructured));
+        bool probeActive = false;
+        if (session.Timeline is not null && session.Selected is not null && session.Assessments.TryGetValue(session.Selected.Key, out var selectedAssessment))
+            probeActive = probeScheduler.IsActive(now) || probeScheduler.TryStart(now, selectedAssessment.State);
+        SetAsrDesired(decision.ShouldRunAsr || probeActive);
         status(SourceStatus(decision, audioStatus));
         if (decision.Frame != rendered) { learning.RenderFrame(decision.Frame); rendered = decision.Frame; }
-        ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation);
+        ScheduleSoonest(session.NextDelay(offset), decision.NextEvaluation, probeScheduler.NextDelay(now));
     }
 
     private void SuspendAsr()
@@ -145,9 +154,9 @@ internal sealed class PlaybackController : IDisposable
         _ => session.Status
     };
 
-    private void ScheduleSoonest(TimeSpan? first, TimeSpan? second)
+    private void ScheduleSoonest(TimeSpan? first, TimeSpan? second, TimeSpan? third = null)
     {
-        TimeSpan? delay = first is null ? second : second is null || first <= second ? first : second;
+        TimeSpan? delay = first is null ? second is null ? third : third is null || second <= third ? second : third : second is null ? third is null || first <= third ? first : third : third is null ? first <= second ? first : second : new[] { first.Value, second.Value, third.Value }.Min();
         if (delay is null) return;
         timer.Interval = delay < TimeSpan.FromMilliseconds(15) ? TimeSpan.FromMilliseconds(15) : delay.Value;
         timer.Start();
@@ -161,16 +170,23 @@ internal sealed class PlaybackController : IDisposable
         {
             lock (asrGate) { if (disposed || !asrDesired || generation != asrGeneration) return; }
             if (media != Volatile.Read(ref mediaGeneration) || session.Snapshot is null) return;
+            var completedAt = Stopwatch.GetTimestamp();
+            var observed = audioClock.MapCaptureTime(value.Start + (value.End - value.Start) / 2);
+            if (observed is null) return;
+            var latency = audioClock.EstimateInferenceLatency(value.End, completedAt);
+            if (latency is not null) log($"ASR callback latency={latency.Value.TotalMilliseconds:F0}ms; capture center={observed.Value.TotalSeconds:F3}s");
             if (session.Candidates.Count > 0)
             {
                 var snapshot = session.Snapshot;
-                var observed = snapshot.PositionAt(Stopwatch.GetTimestamp());
-                double progress = snapshot.Track.Duration > TimeSpan.Zero ? observed.TotalSeconds / snapshot.Track.Duration.TotalSeconds : 0;
-                foreach (var candidate in session.Candidates) session.AcceptEvidence(candidate.Candidate.Key, value, observed, progress);
+                double progress = snapshot.Track.Duration > TimeSpan.Zero ? observed.Value.TotalSeconds / snapshot.Track.Duration.TotalSeconds : 0;
+                foreach (var candidate in session.Candidates) session.AcceptEvidence(candidate.Candidate.Key, value, observed.Value, progress);
             }
+            if (latency is not null && session.Selected is { } selected && session.Assessments.TryGetValue(selected.Key, out var assessment)) probeScheduler.RecordInference(latency.Value, assessment.State);
             router.AcceptTranscript(value, Stopwatch.GetTimestamp()); rendered = null; Refresh();
         }));
     }
+
+    private void OnCaptureObserved(AudioCaptureObservation observation) => audioClock.ObserveCapture(observation);
 
     private void OnAsrStatus(AudioSourceStatus value)
     {
@@ -248,7 +264,7 @@ internal sealed class PlaybackController : IDisposable
         lock (asrGate) { if (disposed) return; asrDesired = false; long generation = ++asrGeneration; asrTransition = asrTransition.ContinueWith(_ => ApplyAsrTargetAsync(false, generation), TaskScheduler.Default).Unwrap(); transition = asrTransition; }
         lifetime.Cancel();
         try { transition.Wait(TimeSpan.FromSeconds(4)); } catch (AggregateException ex) { log($"ASR shutdown transition: {ex.GetBaseException().Message}"); }
-        asr.Transcript -= OnTranscript; asr.StatusChanged -= OnAsrStatus;
+        asr.Transcript -= OnTranscript; asr.CaptureObserved -= OnCaptureObserved; asr.StatusChanged -= OnAsrStatus;
         try { asr.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(4)); } catch (AggregateException ex) { log($"ASR shutdown: {ex.GetBaseException().Message}"); }
         lock (asrGate) disposed = true;
         learning.Dispose(); timer.Stop(); metadata.Dispose(); session.Dispose(); http.Dispose(); lifetime.Dispose(); _ = Task.Run(readings.Dispose);

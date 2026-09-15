@@ -124,3 +124,6 @@ The glyph renderer now uses a persisted configurable black outline from 0 to 8 p
 ## Lyric verification implementation evidence — 2026-09-15
 
 The Release solution build, native suite and deterministic tests pass. The focused lyric tests cover bounded cross-provider retention, Japanese partial matching, repeated contradiction rejection, robust offset and drift, monotonic projection, persistent verified/rejected profiles, corruption-safe restart and session restoration of learned alignment. The Windows playback path compiles with local ASR evidence callbacks, candidate persistence and media-generation stale-result checks. Real singing recognition remains dependent on the installed local Whisper model and requires controlled-media acceptance; no raw audio is persisted.
+### Lyric timing/cache hardening evidence — 2026-09-15
+
+Deterministic tests cover capture-time mapping independent of simulated inference latency, seek and pause/resume re-anchoring, 0.5x/2x rate behavior, capture restart, stale track and discontinuity rejection, low-duty scheduler backoff, ±12 second acquisition, tight tracking, and cached candidate alternate discovery. Native and package checks remain required after this change. Controlled real singing acceptance still depends on local Whisper quality and is not represented as a committed recording fixture.

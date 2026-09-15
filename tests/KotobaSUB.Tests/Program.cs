@@ -13,6 +13,7 @@ try
 {
     LyricsTests.Run(Test, directory);
     AudioTests.Run(Test);
+    AudioMediaClockTests.Run(Test);
     RoutingTests.Run(Test);
     LyricVerificationTests.Run(Test);
     JapaneseTests.Run(Test, directory, args.SkipWhile(a => a != "--dictionary").Skip(1).FirstOrDefault());

@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
 using KotobaSUB.Core.Audio;
 
 namespace KotobaSUB.Core.Audio;
@@ -16,6 +17,7 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     private Task? worker;
     private bool disposed;
     public event Action<TranscriptionSegment>? Transcript;
+    public event Action<AudioCaptureObservation>? CaptureObserved;
     public event Action<AudioSourceStatus>? StatusChanged;
     public AudioSourceStatus Status { get; private set; } = new(AudioSourceHealth.Stopped, "Local ASR stopped");
     public AudioTranscriptionSession(IAudioSource source, ITranscriptionProvider transcriber, Action<string> log, TimeSpan? inactivityFlush = null)
@@ -36,6 +38,7 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
     {
         IAsyncEnumerator<AudioBlock> blocks = source.ReadAllAsync(token).GetAsyncEnumerator(token);
         Task<bool>? pendingRead = null;
+        long previousEnd = -1;
         try
         {
             while (true)
@@ -56,6 +59,10 @@ public sealed class AudioTranscriptionSession : IAsyncDisposable
                     break;
                 }
                 AudioBlock block = blocks.Current; pendingRead = null;
+                long firstSample = block.FirstSample >= 0 ? block.FirstSample : previousEnd >= 0 ? previousEnd : 0;
+                bool discontinuity = previousEnd >= 0 && firstSample != previousEnd;
+                CaptureObserved?.Invoke(new(firstSample, firstSample + block.Samples.LongLength, Stopwatch.GetTimestamp(), discontinuity));
+                previousEnd = firstSample + block.Samples.LongLength;
                 foreach (var window in activity.Push(block)) await ProcessWindowAsync(window, token).ConfigureAwait(false);
             }
         }
