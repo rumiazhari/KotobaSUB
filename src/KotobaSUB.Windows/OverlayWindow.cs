@@ -99,7 +99,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     private static string Romaji(LearningToken token) => token.PartOfSpeech == "助詞" && token.Surface is "は" or "へ" or "を"
         ? token.Surface switch { "は" => "wa", "へ" => "e", _ => "o" }
         : token.Reading is { } reading ? KanaRomanizer.Convert(reading) : "";
-    private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily)
+    private OutlinedText Label(string value, double size, double opacity, double minHeight = 0) => new(value, size, Preferences.FontFamily, Preferences.JapaneseWeight)
     {
         Opacity = opacity, MinHeight = minHeight
     };

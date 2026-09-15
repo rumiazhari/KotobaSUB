@@ -104,3 +104,7 @@ Moved furigana, gloss, supplied-translation and inactive-line opacity into valid
 ## M6 settings startup checkpoint — 2026-09-15
 
 The native settings window now exposes the same guarded **Start with Windows** preference as the tray. Native smoke toggled it through the settings callback and observed the change; the complete suite passed and the regenerated Chrome preview contained 62 sampled colors. Development launches still refuse to register a `dotnet` command.
+
+## M6 font weight checkpoint — 2026-09-15
+
+Added persisted Japanese font weight (400–800) and wired it into `OutlinedText` glyph construction. Native smoke selected weight 700 through the live settings panel; the complete suite passed and the regenerated Chrome preview contained 58 sampled colors.

@@ -146,3 +146,7 @@ Implemented independent persisted opacity controls for furigana, gloss, supplied
 ## M6 settings startup checkpoint — 2026-09-15
 
 Added the opt-in startup toggle to the native settings window, sharing the existing current-user registration guard with the tray. Continue with remaining model-selection controls and physical acceptance.
+
+## M6 font weight checkpoint — 2026-09-15
+
+Implemented the Japanese font-weight setting across persisted preferences, native controls and glyph rendering. Continue with model-selection behavior and physical acceptance.

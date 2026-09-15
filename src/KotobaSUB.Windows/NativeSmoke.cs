@@ -73,12 +73,14 @@ internal static class NativeSmoke
                 Check(edited?.FontFamily == "Meiryo UI", "settings font family applies live");
                 panel.Children.OfType<Slider>().First().Value = 42;
                 Check(edited?.FontSize == 42, "settings font slider applies live");
-                Check(panel.Children.OfType<Slider>().Count() == 8, "settings exposes layer opacity sliders");
-                panel.Children.OfType<Slider>().Skip(1).First().Value = 16;
+                Check(panel.Children.OfType<Slider>().Count() == 9, "settings exposes weight and layer opacity sliders");
+                panel.Children.OfType<Slider>().Skip(1).First().Value = 700;
+                Check(edited?.JapaneseWeight == 700, "settings Japanese weight applies live");
+                panel.Children.OfType<Slider>().Skip(2).First().Value = 16;
                 Check(edited?.TokenSpacing == 16, "settings token spacing applies live");
-                panel.Children.OfType<Slider>().Skip(2).First().Value = .6;
+                panel.Children.OfType<Slider>().Skip(3).First().Value = .6;
                 Check(edited?.JapaneseOpacity == .6, "settings Japanese opacity applies live");
-                panel.Children.OfType<Slider>().Skip(3).First().Value = .7;
+                panel.Children.OfType<Slider>().Skip(4).First().Value = .7;
                 Check(edited?.FuriganaOpacity == .7, "settings furigana opacity applies live");
                 var startupToggle = panel.Children.OfType<CheckBox>().Single(c => (string)c.Content == "Start with Windows");
                 startupToggle.IsChecked = true; startupToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));

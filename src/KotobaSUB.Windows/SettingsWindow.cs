@@ -32,6 +32,11 @@ internal sealed class SettingsWindow : Window
         var size = new Slider { Minimum = 18, Maximum = 72, Value = current.FontSize, TickFrequency = 2, IsSnapToTickEnabled = true };
         size.ValueChanged += (_, _) => { current = current with { FontSize = size.Value }; sizeText.Text = $"Japanese text size: {size.Value:0}"; changed(current); };
         panel.Children.Add(size);
+        var weightText = new TextBlock { Text = $"Japanese weight: {current.JapaneseWeight}", Margin = new Thickness(0, 12, 0, 4) };
+        panel.Children.Add(weightText);
+        var weight = new Slider { Minimum = 400, Maximum = 800, Value = current.JapaneseWeight, TickFrequency = 100, IsSnapToTickEnabled = true };
+        weight.ValueChanged += (_, _) => { current = current with { JapaneseWeight = (int)weight.Value }; weightText.Text = $"Japanese weight: {(int)weight.Value}"; changed(current); };
+        panel.Children.Add(weight);
         var spacingText = new TextBlock { Text = $"Token spacing: {current.TokenSpacing:0}", Margin = new Thickness(0, 12, 0, 4) };
         panel.Children.Add(spacingText);
         var spacing = new Slider { Minimum = 0, Maximum = 32, Value = current.TokenSpacing, TickFrequency = 2, IsSnapToTickEnabled = true };

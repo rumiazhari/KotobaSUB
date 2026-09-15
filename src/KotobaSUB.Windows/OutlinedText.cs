@@ -4,12 +4,12 @@ namespace KotobaSUB.Windows;
 
 // Draw only glyph geometry: an opaque dark outline keeps white text readable
 // without introducing a subtitle panel on light video frames.
-internal sealed class OutlinedText(string value, double size, string family) : FrameworkElement
+internal sealed class OutlinedText(string value, double size, string family, int weight) : FrameworkElement
 {
     private FormattedText Format(double width)
     {
         var formatted = new FormattedText(value, CultureInfo.GetCultureInfo("ja-JP"), FlowDirection.LeftToRight,
-            new Typeface(new FontFamily(family), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
+            new Typeface(new FontFamily(family), FontStyles.Normal, FontWeight.FromOpenTypeWeight(weight), FontStretches.Normal),
             size, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
         if (double.IsFinite(width) && width > 4) formatted.MaxTextWidth = width - 4;
         formatted.TextAlignment = TextAlignment.Center;

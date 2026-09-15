@@ -8,6 +8,7 @@ public sealed record OverlaySettings
     public double Width { get; init; } = 1000;
     public double Height { get; init; } = 240;
     public double FontSize { get; init; } = 36;
+    public int JapaneseWeight { get; init; } = 600;
     public double JapaneseOpacity { get; init; } = 1;
     public double FuriganaOpacity { get; init; } = .95;
     public double GlossOpacity { get; init; } = .85;
@@ -32,6 +33,7 @@ public sealed record OverlaySettings
         Version = 1, Left = Finite(Left, 200), Top = Finite(Top, 650),
         Width = Clamp(Width, 320, 3840, 1000), Height = Clamp(Height, 140, 1200, 240),
         FontSize = Clamp(FontSize, 18, 72, 36), TokenSpacing = Clamp(TokenSpacing, 0, 32, 8),
+        JapaneseWeight = Math.Clamp(JapaneseWeight, 400, 800),
         JapaneseOpacity = Clamp(JapaneseOpacity, 0.1, 1, 1),
         FuriganaOpacity = Clamp(FuriganaOpacity, 0.1, 1, .95), GlossOpacity = Clamp(GlossOpacity, 0.1, 1, .85),
         TranslationOpacity = Clamp(TranslationOpacity, 0.1, 1, .9), InactiveLineOpacity = Clamp(InactiveLineOpacity, 0.1, 1, .45),
