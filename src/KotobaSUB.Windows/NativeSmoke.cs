@@ -73,9 +73,11 @@ internal static class NativeSmoke
                 Check(edited?.FontFamily == "Meiryo UI", "settings font family applies live");
                 panel.Children.OfType<Slider>().First().Value = 42;
                 Check(edited?.FontSize == 42, "settings font slider applies live");
-                Check(panel.Children.OfType<Slider>().Count() == 3, "settings exposes token spacing slider");
+                Check(panel.Children.OfType<Slider>().Count() == 4, "settings exposes token spacing and opacity sliders");
                 panel.Children.OfType<Slider>().Skip(1).First().Value = 16;
                 Check(edited?.TokenSpacing == 16, "settings token spacing applies live");
+                panel.Children.OfType<Slider>().Skip(2).First().Value = .6;
+                Check(edited?.JapaneseOpacity == .6, "settings Japanese opacity applies live");
                 panel.Children.OfType<Slider>().Last().Value = 1.5;
                 Check(edited?.GlobalOffsetSeconds == 1.5, "settings sync slider applies live");
                 settings.UpdateLayout(); Capture(settings, Path.Combine(directory, "settings.png")); settings.Close();

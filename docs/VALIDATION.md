@@ -88,3 +88,7 @@ The native settings window now exposes the existing token-spacing value as a liv
 ## M6 settings font checkpoint — 2026-09-15
 
 Added a bounded editable font-family selector using the existing `OverlaySettings.FontFamily` value and live renderer path. Native smoke selected `Meiryo UI` and observed the changed settings value; the updated Chrome preview contained 58 sampled colors. Installed-font availability outside the listed defaults remains handled by the editable field.
+
+## M6 settings opacity checkpoint — 2026-09-15
+
+Added a validated Japanese-text opacity setting from 10% to 100%, wired into the actual token renderer and applied live. Native smoke set it to 60%; all regressions passed and the regenerated headless Chrome preview contained 54 sampled colors.

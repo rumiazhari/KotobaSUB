@@ -130,3 +130,7 @@ Exposed the already-rendered token-spacing setting in the compact native setting
 ## M6 settings font checkpoint — 2026-09-15
 
 Exposed the existing font-family setting in the compact native settings window with live updates and regression coverage. Continue with opacity/weight controls, cache controls and physical acceptance.
+
+## M6 settings opacity checkpoint — 2026-09-15
+
+Exposed Japanese text opacity in the compact settings window and connected it to rendering with live updates. Continue with remaining layer-specific appearance controls, cache controls and physical acceptance.

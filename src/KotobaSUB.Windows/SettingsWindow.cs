@@ -37,6 +37,11 @@ internal sealed class SettingsWindow : Window
         var spacing = new Slider { Minimum = 0, Maximum = 32, Value = current.TokenSpacing, TickFrequency = 2, IsSnapToTickEnabled = true };
         spacing.ValueChanged += (_, _) => { current = current with { TokenSpacing = spacing.Value }; spacingText.Text = $"Token spacing: {spacing.Value:0}"; changed(current); };
         panel.Children.Add(spacing);
+        var opacityText = new TextBlock { Text = $"Japanese opacity: {current.JapaneseOpacity:P0}", Margin = new Thickness(0, 12, 0, 4) };
+        panel.Children.Add(opacityText);
+        var opacity = new Slider { Minimum = .1, Maximum = 1, Value = current.JapaneseOpacity, TickFrequency = .1, IsSnapToTickEnabled = true };
+        opacity.ValueChanged += (_, _) => { current = current with { JapaneseOpacity = opacity.Value }; opacityText.Text = $"Japanese opacity: {opacity.Value:P0}"; changed(current); };
+        panel.Children.Add(opacity);
         var offsetText = new TextBlock { Text = $"Global sync: {current.GlobalOffsetSeconds:+0.0;-0.0;0.0} s (positive = earlier)", Margin = new Thickness(0, 12, 0, 4) };
         panel.Children.Add(offsetText);
         var offset = new Slider { Minimum = -30, Maximum = 30, Value = current.GlobalOffsetSeconds, TickFrequency = .5, IsSnapToTickEnabled = true };

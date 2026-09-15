@@ -87,7 +87,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
             if (Preferences.Furigana)
                 stack.Children.Add(Label(JapaneseText.HasKanji(token.Surface) ? token.Reading ?? "" : "", Preferences.FontSize * .45, .95, Preferences.FontSize * .7));
             if (Preferences.Romaji) stack.Children.Add(Label(Romaji(token), Preferences.FontSize * .42, .9, Preferences.FontSize * .65));
-            stack.Children.Add(Label(token.Surface, Preferences.FontSize, 1));
+            stack.Children.Add(Label(token.Surface, Preferences.FontSize, Preferences.JapaneseOpacity));
             if (Preferences.Gloss) stack.Children.Add(Label(token.Glosses.FirstOrDefault() ?? "", Preferences.FontSize * .43, .85, Preferences.FontSize * .65));
             words.Children.Add(stack);
         }
