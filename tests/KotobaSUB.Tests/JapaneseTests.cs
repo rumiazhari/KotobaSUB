@@ -1,14 +1,62 @@
 using KotobaSUB.Core;
+using KotobaSUB.Core.Adapted.FlyingLyrics;
+using KotobaSUB.Core.Lyrics;
 using KotobaSUB.Core.Japanese;
 using KotobaSUB.Japanese;
 using System.Security.Cryptography;
 
 internal static class JapaneseTests
 {
+    private sealed class ReadingSource : ILyricsSource
+    {
+        public string Name => "fixture";
+        public List<string> Queries { get; } = new();
+        public Task<IReadOnlyList<LyricsCandidate>> SearchAsync(string query, CancellationToken token)
+        {
+            Queries.Add(query);
+            IReadOnlyList<LyricsCandidate> result = query == "kashu yorunikakeru" ? [new(Name, "reading", "Yoru ni Kakeru", "kashu", TimeSpan.FromSeconds(200), "[00:01]夜")] : [];
+            return Task.FromResult(result);
+        }
+        public Task<LyricsCandidate> FetchAsync(LyricsCandidate candidate, CancellationToken token) => Task.FromResult(candidate);
+    }
     private static void Check(bool value, string message = "assertion failed") { if (!value) throw new Exception(message); }
     public static void Run(Action<string, Action> test, string directory, string? fullDictionary)
     {
         using var tokenizer = new IpaTokenizer();
+        test("real metadata readings allow exact cross-script identity with hard gates", () =>
+        {
+            using var readings = new MetadataReadings();
+            Check(readings.Romanize("夜に駆ける") == "yorunikakeru");
+            Check(readings.Romanize("私は学校へ") == "watashiwagakkoue");
+            Check(readings.Romanize("𠮷𠮷𠮷") is null);
+            var track = new MediaTrack("fixture", "夜に駆ける", "歌手", "", TimeSpan.FromSeconds(200));
+            bool Match(string title, string artist = "kashu", int seconds = 200) => MetadataMatching.Evaluate(track, title, artist, TimeSpan.FromSeconds(seconds), readings.Romanize).Accepted;
+            Check(Match("Yoru ni Kakeru"));
+            Check(!Match("Yoru ni Kakeru", "other") && !Match("Yoru ni Kakeru", seconds: 240));
+            Check(!Match("Yoru ni Kakeru (Live)"));
+            Check(!Match("Yoru ni Kakeru extra"));
+            var homophone = track with { Title = "橋", Artist = "YOASOBI" };
+            Check(!MetadataMatching.Evaluate(homophone, "箸", "YOASOBI", track.Duration, readings.Romanize).Accepted);
+            Check(MetadataMatching.Evaluate(track with { Title = "Yoru ni Kakeru", Artist = "kashu" }, "夜に駆ける", "歌手", track.Duration, readings.Romanize).Accepted);
+        });
+        test("metadata resolver uses bounded local aliases and revalidates cache on worker", () =>
+        {
+            using var readings = new MetadataReadings();
+            int caller = Environment.CurrentManagedThreadId;
+            string? Alias(string text) { Check(Environment.CurrentManagedThreadId != caller, "analysis must leave calling thread"); return readings.Romanize(text); }
+            var track = new MediaTrack("fixture", "夜に駆ける", "歌手", "", TimeSpan.FromSeconds(200));
+            var source = new ReadingSource();
+            var cache = new LyricsCache(Path.Combine(directory, "reading-lyrics"), _ => { });
+            var resolver = new LyricsResolver([source], cache, _ => { }, Alias);
+            var found = resolver.ResolveAsync(track, new HashSet<string>(), false, CancellationToken.None).GetAwaiter().GetResult();
+            Check(found?.Id == "reading" && source.Queries.Count <= 3);
+            Check(source.Queries[0] == "歌手 夜に駆ける" && source.Queries.Contains("kashu yorunikakeru"));
+            int searches = source.Queries.Count;
+            Check(resolver.ResolveAsync(track, new HashSet<string>(), false, CancellationToken.None).GetAwaiter().GetResult()?.Id == "reading");
+            Check(source.Queries.Count == searches);
+            Check(cache.Load(track) is null);
+            Check(cache.Load(track with { Duration = TimeSpan.FromSeconds(250) }, readings.Romanize) is null);
+        });
         test("real IPADIC preserves source and joins inflected auxiliary endings", () =>
         {
             var words = tokenizer.Tokenize("私は明日学校に行きます");

@@ -15,7 +15,7 @@ dotnet build KotobaSUB.slnx -c Release
 dotnet run --project src/KotobaSUB.Windows -c Release
 ```
 
-Normal mode automatically looks up the active Windows media session's song metadata. It may also look up a paused session. Only accepted synchronized lyrics are displayed; untimed or mismatched results leave the overlay empty while ASR is unavailable. Current matching supports native text, supplied alternate-script title aliases, and local kana romanization. Arbitrary kanji-to-romanized titles still need dictionary-backed readings.
+Normal mode automatically looks up the active Windows media session's song metadata. It may also look up a paused session. Only accepted synchronized lyrics are displayed; untimed or mismatched results leave the overlay empty while ASR is unavailable. Current matching supports native text, supplied aliases, local kana romanization and exact IPADIC-backed kanji-to-Latin readings. Unknown kanji are not guessed; alternative pronunciations and spelling conventions may still fail to match.
 
 Ctrl+Alt+F9 hides/shows the overlay; Ctrl+Alt+F10 unlocks/locks position. While unlocked, drag its edit area or bottom-right resize handle. The tray provides pause, wrong-lyrics/retry, per-song sync and settings. Positive sync offsets show lyrics earlier. Previous/next lines are optional. Settings changes apply immediately. Quit from the tray.
 

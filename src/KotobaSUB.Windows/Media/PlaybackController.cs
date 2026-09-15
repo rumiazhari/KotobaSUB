@@ -13,6 +13,7 @@ internal sealed class PlaybackController : IDisposable
     private readonly Action<string> status;
     private readonly Action<string> log;
     private readonly LearningRenderer learning;
+    private readonly KotobaSUB.Japanese.MetadataReadings readings;
     private readonly HttpClient http = new();
     private readonly SmtcMetadataProvider metadata;
     private readonly LyricsSession session;
@@ -28,8 +29,9 @@ internal sealed class PlaybackController : IDisposable
     {
         this.overlay = overlay; this.status = status; this.log = log;
         learning = new LearningRenderer(overlay, Path.Combine(directory, "annotations"), log);
+        readings = new(log);
         var client = new LyricsHttpClient(http);
-        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], new LyricsCache(Path.Combine(directory, "lyrics-v1"), log), log), log);
+        session = new LyricsSession(new LyricsResolver([new LrcLibSource(client), new NetEaseSource(client)], new LyricsCache(Path.Combine(directory, "lyrics-v1"), log), log, readings.Romanize), log);
         offsets = new(Path.Combine(directory, "song-offsets.json"), log);
         metadata = new(overlay.Dispatcher, log);
         metadata.Changed += OnMedia;
@@ -82,6 +84,6 @@ internal sealed class PlaybackController : IDisposable
     public void Dispose()
     {
         if (disposed) return;
-        disposed = true; learning.Dispose(); timer.Stop(); lifetime.Cancel(); metadata.Dispose(); session.Dispose(); http.Dispose(); lifetime.Dispose();
+        disposed = true; learning.Dispose(); timer.Stop(); lifetime.Cancel(); metadata.Dispose(); session.Dispose(); http.Dispose(); lifetime.Dispose(); _ = Task.Run(readings.Dispose);
     }
 }

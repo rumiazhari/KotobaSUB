@@ -20,18 +20,22 @@ public interface ILyricsSource
     Task<LyricsCandidate> FetchAsync(LyricsCandidate candidate, CancellationToken token);
 }
 
-public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log) : ILyricsProvider
+public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsCache cache, Action<string> log, Func<string, string?>? readingAlias = null) : ILyricsProvider
 {
-    public async Task<LyricsCandidate?> ResolveAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token)
+    public Task<LyricsCandidate?> ResolveAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token) =>
+        Task.Run(() => ResolveCoreAsync(track, rejected, bypassCache, token), token);
+    private async Task<LyricsCandidate?> ResolveCoreAsync(MediaTrack track, IReadOnlySet<string> rejected, bool bypassCache, CancellationToken token)
     {
-        if (!bypassCache && cache.Load(track) is { } cached && !rejected.Contains(cached.Key))
+        if (!bypassCache && cache.Load(track, readingAlias) is { } cached && !rejected.Contains(cached.Key))
         { log($"lyrics cache hit {cached.Key}"); return cached; }
         foreach (var source in sources)
         {
             var candidates = new Dictionary<string, LyricsCandidate>();
             // Native title and explicit alternate-script aliases are retained; no online romanization.
             var titles = MetadataMatching.TitleAliases(track.Title);
-            var queries = titles.SelectMany(t => new[] { MetadataMatching.PrimaryArtist(track.Artist) + " " + t, KanaRomanizer.Convert(MetadataMatching.PrimaryArtist(track.Artist)) + " " + KanaRomanizer.Convert(t) }).Append(titles[0]).Distinct().Take(3);
+            string artist = MetadataMatching.PrimaryArtist(track.Artist);
+            string localArtist = readingAlias?.Invoke(artist) ?? KanaRomanizer.Convert(artist);
+            var queries = titles.SelectMany(t => new[] { artist + " " + t, localArtist + " " + (readingAlias?.Invoke(t) ?? KanaRomanizer.Convert(t)) }).Append(titles[0]).Distinct().Take(3);
             foreach (string query in queries)
             {
                 token.ThrowIfCancellationRequested();
@@ -39,7 +43,7 @@ public sealed class LyricsResolver(IReadOnlyList<ILyricsSource> sources, LyricsC
                 catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException && !token.IsCancellationRequested)
                 { log($"{source.Name} search failed: {ex.Message}"); }
             }
-            var ranked = candidates.Values.Where(c => !rejected.Contains(c.Key)).Select(c => (Candidate: c, Match: MetadataMatching.Evaluate(track, c.Title, c.Artist, c.Duration))).ToArray();
+            var ranked = candidates.Values.Where(c => !rejected.Contains(c.Key)).Select(c => (Candidate: c, Match: MetadataMatching.Evaluate(track, c.Title, c.Artist, c.Duration, readingAlias))).ToArray();
             foreach (var c in ranked) log($"candidate {c.Candidate.Key}: {c.Match.Reason}; score={c.Match.Score:F1}");
             foreach (var match in ranked.Where(c => c.Match.Accepted).OrderByDescending(c => c.Match.Score).Take(4))
             {

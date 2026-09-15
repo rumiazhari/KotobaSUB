@@ -7,7 +7,7 @@ public sealed class LyricsCache(string directory, Action<string> log)
 {
     private sealed record Entry(int Version, DateTimeOffset SavedAt, LyricsCandidate Candidate);
     private string FilePath(MediaTrack track) => Path.Combine(directory, track.Identity + ".json");
-    public LyricsCandidate? Load(MediaTrack track)
+    public LyricsCandidate? Load(MediaTrack track, Func<string, string?>? readingAlias = null)
     {
         string path = FilePath(track);
         if (!File.Exists(path)) return null;
@@ -18,7 +18,7 @@ public sealed class LyricsCache(string directory, Action<string> log)
             if (entry is null || entry.Version != 1 || DateTimeOffset.UtcNow - entry.SavedAt > TimeSpan.FromDays(30)) return null;
             var c = entry.Candidate;
             if (c is null || string.IsNullOrWhiteSpace(c.Title) || string.IsNullOrWhiteSpace(c.Artist)) return null;
-            if (!MetadataMatching.Evaluate(track, c.Title, c.Artist, c.Duration).Accepted || string.IsNullOrWhiteSpace(c.Original)) return null;
+            if (!MetadataMatching.Evaluate(track, c.Title, c.Artist, c.Duration, readingAlias).Accepted || string.IsNullOrWhiteSpace(c.Original)) return null;
             return new LyricTimeline(c.Original, c.Translation, track.Duration).HasText ? c : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)

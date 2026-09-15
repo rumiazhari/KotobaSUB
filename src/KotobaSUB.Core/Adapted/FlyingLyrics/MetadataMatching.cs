@@ -59,7 +59,16 @@ public static class MetadataMatching
         }
         return 1 - previous[b.Length] / (double)Math.Max(a.Length, b.Length);
     }
-    public static MatchDecision Evaluate(MediaTrack track, string title, string artist, TimeSpan duration)
+    private static bool ReadingMatches(string a, string b, Func<string, string?> alias)
+    {
+        bool aKanji = JapaneseText.HasKanji(a), bKanji = JapaneseText.HasKanji(b);
+        if (aKanji == bKanji) return false;
+        string latin = Normalize(aKanji ? b : a);
+        if (latin.Length == 0 || !latin.Any(c => c is >= 'a' and <= 'z') || latin.Any(c => c is not (>= 'a' and <= 'z') and not (>= '0' and <= '9'))) return false;
+        string? reading = alias(aKanji ? a : b);
+        return reading is not null && Normalize(reading) == latin;
+    }
+    public static MatchDecision Evaluate(MediaTrack track, string title, string artist, TimeSpan duration, Func<string, string?>? readingAlias = null)
     {
         if (Version(track.Title) != Version(title)) return new(false, 0, "different recording version");
         double delta = Math.Abs((duration - track.Duration).TotalSeconds);
@@ -68,6 +77,11 @@ public static class MetadataMatching
         double titleScore = TitleAliases(track.Title).SelectMany(a => TitleAliases(title).Select(b => Similarity(a, b))).Max();
         double artistScore = Math.Max(Similarity(CleanArtist(track.Artist), CleanArtist(artist)), Similarity(PrimaryArtist(track.Artist), PrimaryArtist(artist)));
         artistScore = Math.Max(artistScore, Similarity(KanaRomanizer.Convert(PrimaryArtist(track.Artist)), KanaRomanizer.Convert(PrimaryArtist(artist))));
+        if (readingAlias is not null)
+        {
+            if (TitleAliases(track.Title).Any(a => TitleAliases(title).Any(b => ReadingMatches(a, b, readingAlias)))) titleScore = 1;
+            if (ReadingMatches(PrimaryArtist(track.Artist), PrimaryArtist(artist), readingAlias)) artistScore = 1;
+        }
         if (titleScore < .82 || artistScore < .8) return new(false, 0, "title or artist mismatch");
         if (!known && (titleScore < .99 || artistScore < .99)) return new(false, 0, "duration unknown and identity is not exact");
         return new(true, titleScore * 65 + artistScore * 30 + (known ? Math.Max(0, 5 - delta) : 0), "identity and duration accepted");
