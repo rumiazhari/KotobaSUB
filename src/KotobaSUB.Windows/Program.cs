@@ -14,6 +14,7 @@ internal static class Program
         if (args.Contains("--learning-smoke")) return LearningSmoke.Run();
         if (args.Contains("--audio-smoke")) return AudioSmoke.Run(args);
         if (args.Contains("--routing-smoke")) return RoutingSmoke.Run(args);
+        if (args.Contains("--startup-smoke")) return StartupSmoke.Run();
         if (args.Contains("--smoke")) return NativeSmoke.Run(args);
         if (args.Contains("--media-smoke")) return MediaSmoke.Run(args);
         using var instance = new System.Threading.Mutex(true, (args.Contains("--app-smoke") || args.Contains("--freeze-smoke")) ? "Local\\KotobaSUB.Smoke" : "Local\\KotobaSUB", out bool first);
@@ -104,6 +105,26 @@ internal static class Program
             }
         };
         menu.Items.Add(modelAction);
+        var startup = new StartupRegistration();
+        bool changingStartup = false;
+        var startWithWindows = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Checked = startup.Enabled };
+        startWithWindows.CheckedChanged += (_, _) =>
+        {
+            if (changingStartup) return;
+            try
+            {
+                string executablePath = Environment.ProcessPath ?? throw new InvalidOperationException("Application path unavailable.");
+                if (!Path.GetFileName(executablePath).Equals("KotobaSUB.exe", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Startup registration is available from the published KotobaSUB executable.");
+                startup.Set(startWithWindows.Checked, executablePath);
+            }
+            catch (Exception ex)
+            {
+                changingStartup = true; startWithWindows.Checked = false; changingStartup = false;
+                Report($"Startup registration failed: {ex.Message}");
+            }
+        };
+        menu.Items.Add(startWithWindows);
         menu.Items.Add(new Forms.ToolStripSeparator());
         SettingsWindow? settings = null;
         void OpenSettings()
@@ -136,7 +157,7 @@ internal static class Program
             smokeTimer.Tick += (_, _) =>
             {
                 smokeTimer.Stop(); Directory.CreateDirectory(directory);
-                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\nModelAction={modelAction.Text}\nFrozen={frozen}\n");
+                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\nModelAction={modelAction.Text}\nStartWithWindows={startWithWindows.Checked}\nFrozen={frozen}\n");
                 app.Shutdown();
             };
             smokeTimer.Start();
