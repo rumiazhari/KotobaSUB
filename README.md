@@ -54,3 +54,9 @@ Run `./tools/setup-data.ps1` before launching to download official English JMdic
 IPADIC deploys through the pinned NuGet package. Without JMdict, readings work but meanings are unavailable. Analysis runs locally on a worker; original text appears while annotation completes. Romaji defaults off. A selected short gloss is a learning aid, not contextual translation. Annotation cache is bounded to 512 memory entries and 256 local files.
 
 JMdict is © EDRDG / Jim Breen, CC BY-SA 4.0. The derived index retains that data license. See THIRD_PARTY_NOTICES.md and docs/licenses; local output copies notices into Data/. Full-data tests run automatically in tools/verify.ps1 when the index exists.
+
+## Windows packages
+
+Run `./tools/package.ps1 -Verify` to publish a framework-dependent `win-x64` ZIP under `artifacts/package`, extract it into a clean folder, and run the packaged tray-shell smoke. The archive contains `KotobaSUB.exe`, its pinned runtime dependencies, IPADIC/JMdict data, licenses, `LICENSE`, `README.md`, and `THIRD_PARTY_NOTICES.md`. It excludes downloaded Whisper models, developer audio fixtures, and test artifacts.
+
+Run `./tools/package.ps1 -SelfContained -Verify` for a standalone `win-x64` ZIP. A fresh checkout may first need `./.tools/dotnet/dotnet.exe restore src/KotobaSUB.Windows/KotobaSUB.Windows.csproj -r win-x64` to obtain Microsoft runtime packs. The model remains an explicit post-install tray download, so neither ZIP bundles it.

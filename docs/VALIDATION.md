@@ -70,3 +70,7 @@ The native smoke now verifies that Study mode enables token interaction only aft
 ## M6 monitor-aware placement checkpoint — 2026-09-15
 
 Implemented persisted monitor device identity and normalized working-area placement. Missing saved monitors recover to a live primary display; existing coordinate-only settings continue to load and receive monitor metadata on their next save. The native smoke recorded active monitor placement and recovery from an unavailable monitor, and the regenerated Chrome preview was non-uniform with 55 sampled colors. Mixed-DPI, physical monitor removal and sleep/wake remain manual acceptance work.
+
+## Windows package checkpoint — 2026-09-15
+
+`tools/package.ps1 -Verify` published a framework-dependent win-x64 archive, expanded it into a clean directory and ran its actual `KotobaSUB.exe --app-smoke`; the result records `TrayVisible=True`. After restoring the required Microsoft win-x64 runtime packs, `tools/package.ps1 -SelfContained -Verify` produced a 132,532,713-byte self-contained ZIP and the extracted executable recorded the same successful tray result. Package assembly rejects Whisper models, developer audio fixtures and artifacts; the model remains an explicit post-install download. Installer UX, code signing and physical clean-machine installation remain unverified.

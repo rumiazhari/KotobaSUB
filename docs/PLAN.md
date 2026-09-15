@@ -112,3 +112,7 @@ Implemented the opt-in tray startup toggle using the current-user Run registry k
 ## M6 monitor-aware placement checkpoint — 2026-09-15
 
 Implemented monitor-aware overlay persistence: save active device identity and normalized working-area coordinates, restore to that display when available, and recover to the primary display when it is missing. Existing settings migrate on the next save. Native smoke and rendered browser preview pass. Next M6 work is package artifacts, resource profiling and physical acceptance.
+
+## M6 Windows package checkpoint — 2026-09-15
+
+Implemented `tools/package.ps1` for framework-dependent and self-contained win-x64 ZIP artifacts. It assembles published output with the required data and notices, rejects developer models/fixtures/artifacts, writes a manifest, and optionally extracts then smoke-tests the actual executable. Both variants were verified from clean extractions. Next M6 work is resource profiling and physical acceptance; installer UX and signing are still required for a release-ready installer.
