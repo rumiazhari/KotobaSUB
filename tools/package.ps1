@@ -30,10 +30,10 @@ if ($Verify) {
     $verification = Join-Path $kindOutput "verify"
     Expand-Archive -LiteralPath $archive -DestinationPath $verification -Force
     $exe = Join-Path $verification "KotobaSUB.exe"
-    if (!(Test-Path -LiteralPath $exe)) { throw "Extracted package is missing KotobaSUB.exe" }
-    Push-Location $verification
-    try { & $exe --app-smoke; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
-    finally { Pop-Location }
+    $smoke = Start-Process -FilePath $exe -ArgumentList @("--app-smoke") -WorkingDirectory $verification -Wait -PassThru
+    if ($smoke.ExitCode -ne 0) { throw "Extracted application smoke exited with code $($smoke.ExitCode)." }
+    $resultFile = Join-Path $verification "artifacts/app-smoke/result.txt"
+    for ($i = 0; $i -lt 120 -and !(Test-Path -LiteralPath $resultFile); $i++) { Start-Sleep -Milliseconds 250 }
     $resultFile = Join-Path $verification "artifacts/app-smoke/result.txt"
     for ($i = 0; $i -lt 20 -and !(Test-Path -LiteralPath $resultFile); $i++) { Start-Sleep -Milliseconds 250 }
     if (!(Select-String -LiteralPath $resultFile -Pattern "TrayVisible=True" -Quiet)) { throw "Extracted application smoke did not report a visible tray icon." }
