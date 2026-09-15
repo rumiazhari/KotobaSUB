@@ -84,3 +84,7 @@ The corrected `tools/profile.ps1 -Mode audio` run used absolute model/fixture pa
 ## M6 settings customization checkpoint — 2026-09-15
 
 The native settings window now exposes the existing token-spacing value as a live slider. Native smoke changed it to 16 and observed the updated `OverlaySettings`; the regenerated headless Chrome preview contained 58 sampled colors.
+
+## M6 settings font checkpoint — 2026-09-15
+
+Added a bounded editable font-family selector using the existing `OverlaySettings.FontFamily` value and live renderer path. Native smoke selected `Meiryo UI` and observed the changed settings value; the updated Chrome preview contained 58 sampled colors. Installed-font availability outside the listed defaults remains handled by the editable field.

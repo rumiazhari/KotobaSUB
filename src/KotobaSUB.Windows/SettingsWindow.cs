@@ -21,6 +21,12 @@ internal sealed class SettingsWindow : Window
         Toggle("Supplied line translation", current.Translation, (s, v) => s with { Translation = v });
         Toggle("Previous line", current.PreviousLine, (s, v) => s with { PreviousLine = v });
         Toggle("Next line", current.NextLine, (s, v) => s with { NextLine = v });
+        panel.Children.Add(new TextBlock { Text = "Font family", Margin = new Thickness(0, 12, 0, 4) });
+        var fonts = new ComboBox { ItemsSource = new[] { "Yu Gothic UI", "Meiryo UI", "MS Gothic", "Segoe UI", "Arial" }, SelectedItem = current.FontFamily, IsEditable = true };
+        if (fonts.SelectedItem is null) fonts.Text = current.FontFamily;
+        fonts.SelectionChanged += (_, _) => { if (fonts.SelectedItem is string family) { current = current with { FontFamily = family }; changed(current); } };
+        fonts.LostFocus += (_, _) => { if (!string.IsNullOrWhiteSpace(fonts.Text)) { current = current with { FontFamily = fonts.Text }; changed(current); } };
+        panel.Children.Add(fonts);
         var sizeText = new TextBlock { Text = $"Japanese text size: {current.FontSize:0}", Margin = new Thickness(0, 16, 0, 4) };
         panel.Children.Add(sizeText);
         var size = new Slider { Minimum = 18, Maximum = 72, Value = current.FontSize, TickFrequency = 2, IsSnapToTickEnabled = true };

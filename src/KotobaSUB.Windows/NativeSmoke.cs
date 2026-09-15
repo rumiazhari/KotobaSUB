@@ -68,6 +68,9 @@ internal static class NativeSmoke
                 var nextToggle = panel.Children.OfType<CheckBox>().Single(c => (string)c.Content == "Next line");
                 nextToggle.IsChecked = false; nextToggle.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
                 Check(edited?.NextLine == false, "settings context toggle applies live");
+                var fontCombo = panel.Children.OfType<ComboBox>().Single();
+                fontCombo.SelectedItem = "Meiryo UI";
+                Check(edited?.FontFamily == "Meiryo UI", "settings font family applies live");
                 panel.Children.OfType<Slider>().First().Value = 42;
                 Check(edited?.FontSize == 42, "settings font slider applies live");
                 Check(panel.Children.OfType<Slider>().Count() == 3, "settings exposes token spacing slider");
