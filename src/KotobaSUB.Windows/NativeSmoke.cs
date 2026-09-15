@@ -33,6 +33,10 @@ internal static class NativeSmoke
                 Check(HasTransparentCorner(overlay), "normal content has transparent corner pixels");
                 overlay.SetLocked(false);
                 Check((overlay.Native.Styles & NativeOverlay.Transparent) == 0, "unlock removes click-through");
+                overlay.SetStudyInteractive(true); overlay.UpdateLayout();
+                Check(overlay.StudyInteractive, "study mode enables token interaction");
+                Capture(overlay, Path.Combine(directory, "study-mode.png"));
+                overlay.SetStudyInteractive(false);
                 overlay.SetLocked(true);
                 Check((overlay.Native.Styles & mask) == mask, "relock restores styles");
                 overlay.Hide(); overlay.Show();

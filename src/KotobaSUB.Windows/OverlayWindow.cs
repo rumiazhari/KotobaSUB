@@ -16,7 +16,9 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     internal OverlaySettings Preferences { get; private set; }
     internal SubtitleFrame DisplayedFrame => current;
     internal bool Locked { get; private set; } = true;
+    internal bool StudyInteractive { get; private set; }
     public event Action? GeometryChanged;
+    public event Action<LearningToken>? TokenSelected;
 
     public OverlayWindow(OverlaySettings settings)
     {
@@ -48,8 +50,9 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
     {
         Native.SetLocked(value); Locked = value;
         edit.Visibility = resize.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
-        text.IsHitTestVisible = false;
+        text.IsHitTestVisible = !value && StudyInteractive;
     }
+    internal void SetStudyInteractive(bool value) { StudyInteractive = value; text.IsHitTestVisible = !Locked && value; }
     public void Render(SubtitleLine? line) => RenderFrame(new(line));
     public void RenderFrame(SubtitleFrame frame)
     {
@@ -60,6 +63,7 @@ internal sealed class OverlayWindow : Window, ISubtitleRenderer
         foreach (var token in line.Tokens)
         {
             var stack = new StackPanel { Margin = new Thickness(Preferences.TokenSpacing / 2, 4, Preferences.TokenSpacing / 2, 4) };
+            stack.MouseLeftButtonUp += (_, _) => { if (StudyInteractive) TokenSelected?.Invoke(token); };
             if (Preferences.Furigana)
                 stack.Children.Add(Label(JapaneseText.HasKanji(token.Surface) ? token.Reading ?? "" : "", Preferences.FontSize * .45, .95, Preferences.FontSize * .7));
             if (Preferences.Romaji) stack.Children.Add(Label(Romaji(token), Preferences.FontSize * .42, .9, Preferences.FontSize * .65));

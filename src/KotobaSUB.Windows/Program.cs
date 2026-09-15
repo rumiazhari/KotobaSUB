@@ -16,10 +16,11 @@ internal static class Program
         if (args.Contains("--routing-smoke")) return RoutingSmoke.Run(args);
         if (args.Contains("--smoke")) return NativeSmoke.Run(args);
         if (args.Contains("--media-smoke")) return MediaSmoke.Run(args);
-        using var instance = new System.Threading.Mutex(true, args.Contains("--app-smoke") ? "Local\\KotobaSUB.Smoke" : "Local\\KotobaSUB", out bool first);
+        using var instance = new System.Threading.Mutex(true, (args.Contains("--app-smoke") || args.Contains("--freeze-smoke")) ? "Local\\KotobaSUB.Smoke" : "Local\\KotobaSUB", out bool first);
         if (!first) return 0;
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        var directory = args.Contains("--app-smoke") ? Path.GetFullPath("artifacts/app-smoke") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KotobaSUB");
+        bool shellSmoke = args.Contains("--app-smoke") || args.Contains("--freeze-smoke");
+        var directory = shellSmoke ? Path.GetFullPath(args.Contains("--freeze-smoke") ? "artifacts/freeze-smoke" : "artifacts/app-smoke") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KotobaSUB");
         var log = new LocalLog(Path.Combine(directory, "logs"));
         using var tray = new Forms.NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "KotobaSUB — waiting for media", Visible = true };
         void Log(string message)
@@ -51,7 +52,22 @@ internal static class Program
         position.Click += (_, _) => ToggleLock(); menu.Items.Add(position);
         var pause = new Forms.ToolStripMenuItem("Pause subtitles") { CheckOnClick = true };
         pause.CheckedChanged += (_, _) => playback.SetPaused(pause.Checked); menu.Items.Add(pause);
-        bool preview = args.Contains("--preview") || args.Contains("--app-smoke");
+        bool frozen = false; bool lockBeforeFreeze = true; TokenInfoWindow? tokenInfo = null;
+        var freeze = new Forms.ToolStripMenuItem("Freeze / Study current subtitle") { CheckOnClick = true };
+        void ToggleFreeze(bool value)
+        {
+            if (frozen == value) return;
+            frozen = value;
+            if (value) { lockBeforeFreeze = overlay.Locked; overlay.SetLocked(false); overlay.SetStudyInteractive(true); playback.SetFrozen(true); freeze.Text = "Resume live subtitles"; }
+            else { playback.SetFrozen(false); overlay.SetStudyInteractive(false); overlay.SetLocked(lockBeforeFreeze); freeze.Text = "Freeze / Study current subtitle"; tokenInfo?.Close(); tokenInfo = null; }
+        }
+        freeze.CheckedChanged += (_, _) => ToggleFreeze(freeze.Checked); menu.Items.Add(freeze);
+        overlay.TokenSelected += token =>
+        {
+            if (!frozen) return;
+            tokenInfo?.Close(); tokenInfo = new TokenInfoWindow(token); tokenInfo.Closed += (_, _) => tokenInfo = null; tokenInfo.Show();
+        };
+        bool preview = args.Contains("--preview") || shellSmoke;
         var sample = new Forms.ToolStripMenuItem("Sample preview") { Checked = preview };
         sample.Click += (_, _) => { preview = !preview; sample.Checked = preview; playback.SetPreview(preview); };
         menu.Items.Add(sample);
@@ -103,22 +119,24 @@ internal static class Program
         menu.Items.Add("Settings", null, (_, _) => OpenSettings()); tray.DoubleClick += (_, _) => OpenSettings();
         menu.Items.Add("Quit", null, (_, _) => app.Shutdown());
         overlay.GeometryChanged += Save;
-        app.Exit += (_, _) => { modelDownload?.Cancel(); playback.Dispose(); Save(); settings?.Close(); overlay.Close(); tray.Visible = false; };
+        app.Exit += (_, _) => { modelDownload?.Cancel(); tokenInfo?.Close(); playback.Dispose(); Save(); settings?.Close(); overlay.Close(); tray.Visible = false; };
         overlay.Show();
-        overlay.Native.Hotkey += id => { if (id == 1) ToggleVisible(); else if (id == 2) ToggleLock(); };
+        overlay.Native.Hotkey += id => { if (id == 1) ToggleVisible(); else if (id == 2) ToggleLock(); else if (id == 3) freeze.Checked = !freeze.Checked; };
         if (!overlay.Native.Register(1, 0x78)) Report("Ctrl+Alt+F9 is unavailable. Use the tray to show or hide subtitles.");
         if (!overlay.Native.Register(2, 0x79)) Report("Ctrl+Alt+F10 is unavailable. Use the tray to unlock the overlay.");
+        if (!overlay.Native.Register(3, 0x7B)) Report("Ctrl+Alt+F12 is unavailable. Use the tray to freeze or resume subtitles.");
         playback.SetPreview(preview);
-        if (!args.Contains("--app-smoke")) app.Dispatcher.BeginInvoke(new Action(async () => await playback.StartAsync()));
+        if (args.Contains("--freeze-smoke")) freeze.Checked = true;
+        if (!shellSmoke) app.Dispatcher.BeginInvoke(new Action(async () => await playback.StartAsync()));
         Log("Started native overlay with automatic SMTC/lyrics/local-ASR routing.");
         // The shell smoke explicitly uses sample data and does not start SMTC.
-        if (args.Contains("--app-smoke"))
+        if (shellSmoke)
         {
             var smokeTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
             smokeTimer.Tick += (_, _) =>
             {
                 smokeTimer.Stop(); Directory.CreateDirectory(directory);
-                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\nModelAction={modelAction.Text}\n");
+                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\nModelAction={modelAction.Text}\nFrozen={frozen}\n");
                 app.Shutdown();
             };
             smokeTimer.Start();

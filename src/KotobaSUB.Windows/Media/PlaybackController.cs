@@ -33,6 +33,7 @@ internal sealed class PlaybackController : IDisposable
     private long activeAsrGeneration;
     private bool preview;
     private bool paused;
+    private bool frozen;
     private bool disposed;
     private MediaSnapshot? latest;
     private SubtitleFrame? rendered;
@@ -66,7 +67,7 @@ internal sealed class PlaybackController : IDisposable
     private void OnMedia(MediaSnapshot? snapshot)
     {
         latest = snapshot;
-        if (!preview && !paused) session.Update(snapshot);
+        if (!preview && !paused && !frozen) session.Update(snapshot);
     }
 
     public void SetPreview(bool value)
@@ -83,6 +84,13 @@ internal sealed class PlaybackController : IDisposable
         rendered = null; Refresh();
     }
 
+    public void SetFrozen(bool value)
+    {
+        if (frozen == value) return;
+        frozen = value;
+        session.Update(value ? null : latest);
+        rendered = null; Refresh();
+    }
     public void Retry(bool rejectCurrent)
     {
         if (preview || paused) return;
@@ -102,6 +110,7 @@ internal sealed class PlaybackController : IDisposable
         timer.Stop();
         if (preview) { SuspendAsr(); learning.RenderSample(PreviewSubtitle.Line); status("Sample preview"); return; }
         if (paused) { SuspendAsr(); learning.RenderSample(null); status("Paused"); return; }
+        if (frozen) { SuspendAsr(); status("Frozen — Study mode"); return; }
         double offset = overlay.Preferences.GlobalOffsetSeconds + (session.Snapshot is { } snapshot ? offsets.Get(snapshot.Track.Identity) : 0);
         var structured = session.Frame(offset);
         AudioSourceStatus audioStatus; lock (asrGate) audioStatus = asrStatus;
