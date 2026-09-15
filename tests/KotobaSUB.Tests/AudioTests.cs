@@ -24,7 +24,48 @@ internal static class AudioTests
             try { new AudioSampleConverter(48000, 2, PcmSampleEncoding.Signed16).Convert(new byte[3]); throw new Exception("Expected alignment rejection"); } catch (InvalidDataException) { }
             byte[] invalidFloat = BitConverter.GetBytes(float.NaN); Check(new AudioSampleConverter(16000, 1, PcmSampleEncoding.Float32).Convert(invalidFloat).Single() == 0);
         });
-        test("activity gate rejects silence and short noise", () =>
+        test("model installer verifies before atomic replacement", () => RunAsync(async () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "KotobaSUB-model-" + Guid.NewGuid()); Directory.CreateDirectory(directory);
+            try
+            {
+                byte[] payload = System.Text.Encoding.UTF8.GetBytes("verified model fixture");
+                string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload));
+                var handler = new StaticHttpHandler(payload); using var client = new HttpClient(handler);
+                string target = Path.Combine(directory, "model.bin"); File.WriteAllText(target, "prior");
+                var installer = new WhisperModelInstaller("https://fixture.invalid/model", hash, 1024);
+                var result = await installer.InstallAsync(client, target);
+                Check(!result.AlreadyPresent && File.ReadAllBytes(target).SequenceEqual(payload) && !File.Exists(target + ".download"));
+                var reused = await installer.InstallAsync(client, target);
+                Check(reused.AlreadyPresent && handler.Requests == 1);
+            }
+            finally { Directory.Delete(directory, true); }
+        }));
+        test("model installer preserves prior file on checksum or size failure", () => RunAsync(async () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "KotobaSUB-model-failure-" + Guid.NewGuid()); Directory.CreateDirectory(directory);
+            try
+            {
+                string target = Path.Combine(directory, "model.bin"); File.WriteAllText(target, "prior");
+                using var client = new HttpClient(new StaticHttpHandler([1, 2, 3, 4]));
+                var installer = new WhisperModelInstaller("https://fixture.invalid/model", new string('0', 64), 3);
+                try { await installer.InstallAsync(client, target); throw new Exception("Expected bounded download failure"); } catch (InvalidDataException) { }
+                Check(File.ReadAllText(target) == "prior" && !File.Exists(target + ".download"));
+            }
+            finally { Directory.Delete(directory, true); }
+        }));        test("model installer cancellation removes partial file and preserves prior", () => RunAsync(async () =>
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "KotobaSUB-model-cancel-" + Guid.NewGuid()); Directory.CreateDirectory(directory);
+            try
+            {
+                string target = Path.Combine(directory, "model.bin"); File.WriteAllText(target, "prior");
+                byte[] payload = Enumerable.Repeat((byte)7, 128).ToArray(); string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload));
+                using var client = new HttpClient(new SlowHttpHandler(payload)); using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+                try { await new WhisperModelInstaller("https://fixture.invalid/model", hash, 1024).InstallAsync(client, target, cancellationToken: cancel.Token); throw new Exception("Expected cancellation"); } catch (OperationCanceledException) { }
+                Check(File.ReadAllText(target) == "prior" && !File.Exists(target + ".download"));
+            }
+            finally { Directory.Delete(directory, true); }
+        }));        test("activity gate rejects silence and short noise", () =>
         {
             var gate = new SpeechActivityGate();
             for (int i = 0; i < 10; i++) Check(gate.Push(Block(0, 1600)).Count == 0);
@@ -110,7 +151,32 @@ internal static class AudioTests
         });
     }
     private static void RunAsync(Func<Task> action) => action().GetAwaiter().GetResult();
-    private sealed class FakeSource(IReadOnlyList<AudioBlock> blocks) : IAudioSource
+    private sealed class StaticHttpHandler(byte[] payload) : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests++; var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new ByteArrayContent(payload) };
+            return Task.FromResult(response);
+        }
+    }    private sealed class SlowHttpHandler(byte[] payload) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StreamContent(new SlowReadStream(payload)) });
+    }
+    private sealed class SlowReadStream(byte[] payload) : Stream
+    {
+        private bool sent;
+        public override bool CanRead => true; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => payload.Length; public override long Position { get => sent ? payload.Length : 0; set => throw new NotSupportedException(); }
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!sent) { sent = true; int count = Math.Min(buffer.Length, payload.Length / 2); payload.AsMemory(0, count).CopyTo(buffer); return ValueTask.FromResult(count); }
+            return new(Task.Run(async () => { await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); return 0; }, cancellationToken));
+        }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() { } public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException(); public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }    private sealed class FakeSource(IReadOnlyList<AudioBlock> blocks) : IAudioSource
     {
         public AudioSourceStatus Status { get; private set; } = new(AudioSourceHealth.Stopped, "stopped");
         public long DroppedBlocks => 0;

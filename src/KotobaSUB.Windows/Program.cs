@@ -1,3 +1,6 @@
+using System.Net.Http;
+using System.Threading;
+using KotobaSUB.Core.Audio;
 using KotobaSUB.Windows.Media;
 using Forms = System.Windows.Forms;
 
@@ -57,6 +60,34 @@ internal static class Program
         menu.Items.Add("Sync later (0.5 s)", null, (_, _) => playback.AdjustSync(-.5));
         menu.Items.Add("Wrong lyrics", null, (_, _) => playback.Retry(true));
         menu.Items.Add("Retry source", null, (_, _) => playback.Retry(false));
+        string modelPath = Path.Combine(directory, "models", "ggml-base.bin");
+        using var modelHttp = new HttpClient(); modelHttp.DefaultRequestHeaders.UserAgent.ParseAdd("KotobaSUB/0.1 (+https://github.com/rumiazhari/KotobaSUB)");
+        var modelInstaller = new WhisperModelInstaller(); CancellationTokenSource? modelDownload = null;
+        var modelAction = new Forms.ToolStripMenuItem(File.Exists(modelPath) ? "Verify/update local ASR model" : "Install local ASR model (141 MB)");
+        modelAction.Click += async (_, _) =>
+        {
+            if (modelDownload is not null) { modelDownload.Cancel(); return; }
+            var cancellation = new CancellationTokenSource(); modelDownload = cancellation; modelAction.Text = "Cancel ASR model download";
+            var progress = new Progress<ModelInstallProgress>(value =>
+            {
+                double received = value.BytesReceived / 1048576d; string total = value.TotalBytes is { } bytes ? $" / {bytes / 1048576d:F1}" : "";
+                sourceStatus.Text = $"Source: Downloading ASR model {received:F1}{total} MB";
+            });
+            try
+            {
+                ModelInstallResult result = await modelInstaller.InstallAsync(modelHttp, modelPath, progress, cancellation.Token);
+                string message = result.AlreadyPresent ? "Local ASR model verified" : "Local ASR model installed";
+                Log(message); tray.ShowBalloonTip(3000, "KotobaSUB", message, Forms.ToolTipIcon.Info); playback.Retry(false);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { Log("ASR model download cancelled"); }
+            catch (Exception ex) { Report($"ASR model installation failed: {ex.Message}"); }
+            finally
+            {
+                cancellation.Dispose(); if (modelDownload == cancellation) modelDownload = null;
+                modelAction.Text = File.Exists(modelPath) ? "Verify/update local ASR model" : "Install local ASR model (141 MB)";
+            }
+        };
+        menu.Items.Add(modelAction);
         menu.Items.Add(new Forms.ToolStripSeparator());
         SettingsWindow? settings = null;
         void OpenSettings()
@@ -72,7 +103,7 @@ internal static class Program
         menu.Items.Add("Settings", null, (_, _) => OpenSettings()); tray.DoubleClick += (_, _) => OpenSettings();
         menu.Items.Add("Quit", null, (_, _) => app.Shutdown());
         overlay.GeometryChanged += Save;
-        app.Exit += (_, _) => { playback.Dispose(); Save(); settings?.Close(); overlay.Close(); tray.Visible = false; };
+        app.Exit += (_, _) => { modelDownload?.Cancel(); playback.Dispose(); Save(); settings?.Close(); overlay.Close(); tray.Visible = false; };
         overlay.Show();
         overlay.Native.Hotkey += id => { if (id == 1) ToggleVisible(); else if (id == 2) ToggleLock(); };
         if (!overlay.Native.Register(1, 0x78)) Report("Ctrl+Alt+F9 is unavailable. Use the tray to show or hide subtitles.");
@@ -87,7 +118,7 @@ internal static class Program
             smokeTimer.Tick += (_, _) =>
             {
                 smokeTimer.Stop(); Directory.CreateDirectory(directory);
-                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\n");
+                File.WriteAllText(Path.Combine(directory, "result.txt"), $"TrayVisible={tray.Visible}\nOverlayLocked={overlay.Locked}\n{sourceStatus.Text}\nModelAction={modelAction.Text}\n");
                 app.Shutdown();
             };
             smokeTimer.Start();

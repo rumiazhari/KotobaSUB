@@ -31,7 +31,7 @@ internal sealed class SettingsWindow : Window
         var offset = new Slider { Minimum = -30, Maximum = 30, Value = current.GlobalOffsetSeconds, TickFrequency = .5, IsSnapToTickEnabled = true };
         offset.ValueChanged += (_, _) => { current = current with { GlobalOffsetSeconds = offset.Value }; offsetText.Text = $"Global sync: {offset.Value:+0.0;-0.0;0.0} s (positive = earlier)"; changed(current); };
         panel.Children.Add(offset);
-        panel.Children.Add(new TextBlock { Text = "Ctrl+Alt+F9: show/hide\nCtrl+Alt+F10: unlock/lock position\nSample preview is available from the tray.\nReadings: IPADIC. Meanings: JMdict (EDRDG). ASR is not installed yet.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 20, 0, 0), Foreground = Brushes.DimGray });
+        panel.Children.Add(new TextBlock { Text = "Ctrl+Alt+F9: show/hide\nCtrl+Alt+F10: unlock/lock position\nSample preview is available from the tray.\nReadings: IPADIC. Meanings: JMdict (EDRDG). Install or update the local ASR model from the tray.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 20, 0, 0), Foreground = Brushes.DimGray });
         panel.Children.Add(new TextBlock { Text = "JMdict © EDRDG / Jim Breen — CC BY-SA 4.0", FontSize = 11, Margin = new Thickness(0, 12, 0, 0), TextWrapping = TextWrapping.Wrap });
     }
 }
