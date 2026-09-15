@@ -121,6 +121,18 @@ internal static class LyricsTests
             Check(!first.Fetched.Contains("1"));
             Check(await resolver.ResolveAsync(Track(), new HashSet<string> { good.Key }, true, CancellationToken.None) is null);
         }));
+        test("verified cached lyrics avoid aggressive rediscovery", () => RunAsync(async () =>
+        {
+            string dir = Path.Combine(directory, "cache-verified"); var cache = new LyricsCache(dir, _ => { });
+            var cached = new LyricsCandidate("cached", "verified", "アイドル", "YOASOBI", TimeSpan.FromSeconds(213), "[00:01]私"); cache.Save(Track(), cached);
+            var store = new LyricVerificationStore(Path.Combine(dir, "learning.json"), _ => { });
+            store.Save(Track().Identity, new LyricCandidateAssessment(cached.Key, 97, LyricConfidenceState.Verified, .9, 3, 0), new LyricAlignmentModel(), []);
+            var source = new TestSource("alternate", [cached with { Id = "other" }]);
+            var resolver = new LyricsResolver([source], cache, _ => { });
+            using var session = new LyricsSession(resolver, _ => { }, store);
+            session.Update(new(Track(), TimeSpan.Zero, true, 1, Stopwatch.GetTimestamp())); await session.Pending;
+            Check(session.Selected?.Key == cached.Key && source.Queries.Count == 0);
+        }));
         test("unverified cache keeps immediate candidate while discovering alternates", () => RunAsync(async () =>
         {
             string dir = Path.Combine(directory, "cache-alternates"); var cache = new LyricsCache(dir, _ => { });
@@ -182,7 +194,8 @@ internal static class LyricsTests
     {
         public string Name => name;
         public List<string> Fetched { get; } = new();
-        public Task<IReadOnlyList<LyricsCandidate>> SearchAsync(string query, CancellationToken token) => Task.FromResult(candidates);
+        public List<string> Queries { get; } = new();
+        public Task<IReadOnlyList<LyricsCandidate>> SearchAsync(string query, CancellationToken token) { Queries.Add(query); return Task.FromResult(candidates); }
         public Task<LyricsCandidate> FetchAsync(LyricsCandidate c, CancellationToken token) { Fetched.Add(c.Id); return Task.FromResult(c); }
     }
     private sealed class FixedHandler(string text, HttpStatusCode status) : HttpMessageHandler
